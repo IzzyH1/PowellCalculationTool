@@ -1,8 +1,9 @@
 ---
-title: "Lake Powell Calculation Tool"
+title: "Can You Save Lake Powell?"
 output: html_document
 runtime: shiny
-date: "2026-08-19"
+date: "2026-09-04"
+authors: Isabel Hinton, Brittany Fager, Caitlyn Andrus, Michael Jaquez, Anabelle Myers, Erik Porse, David Rosenberg
 ---
 
 ```{r setup, include=FALSE}
@@ -252,9 +253,21 @@ output$annualTable <- renderTable({
 
 
 ```
-## Instructions: <br />
+```{r logos, results = "show"}
+fluidPage(
+  img(src = "clipboard-image-2026-09-04.png", width = "500px")
+)
+```
+<small><i> This article is part of a National Oceanic and Atmospheric Administration (NOAA) funded project to improve tools to communicate and manage risks of water shortages in the Colorado River Basin. </i></small><br /><br />
+<h2>Instructions: </h2><br />
 Type inputs into the tables/boxes bellow and watch the graph update in real time. <br /><br/>
+*Inflow:* This tool uses the CRMMS 24 Month Study 10th Percentile projection of inflow as the default. If you would like to change these inflows, uncheck the box below. Row 1 describes the annual inflow volume into Lake Powell in MAF/yr. Row 2 describes 
+```{r inflow inputs, results = "show"}
+checkboxInput("CRMMS_Inflow", "Use CRMMS 24 Month Study 10th Percentile as Inflow Projection?", value = TRUE)
 
+uiOutput("inflow_ui")
+uiOutput("inflow_date_ranges")
+```
 *Additional Inflow:* Row 1 allows you to simulate an additional flow into Lake Powell in million-acre feet (MAF). Row 2 describes the time in months it takes for the complete inflow volume to reach Lake Powell. For example, if you input 1 in row 1 and 6 in row 2, this would add 1/6 MAF of water per month for 6 months.  Lake Powell’s projected elevation without the input additional inflow will be plotted in magenta. Lake Powell’s projected elevation with the input additional inflow will be plotted in green.<br />
 
 ```{r inflow table, results = "show"}
@@ -270,12 +283,7 @@ uiOutput("release_date_ranges")
 ```
 <br /><br />
 *Key Elevations: * You can input a buffer and catastrophic elevation in their respective boxes. These elevations will appear on the plot as a labeled red dashed line. The default buffer and catastrophic elevations are 3500 ft. (Final EIS Critical Elevation) and 3490 ft. (Top of the Penstocks, often considered the minimum elevation for power generation) respectively. If nothing is inputted in an elevation text box, these defaults will be plotted. 
-```{r inflow inputs, results = "show"}
-checkboxInput("CRMMS_Inflow", "Use CRMMS 24 Month Study 10th Percentile as Inflow Projection?", value = TRUE)
 
-uiOutput("inflow_ui")
-uiOutput("inflow_date_ranges")
-```
 
 ```{r elevation inputs, results = "show"}
 textInput("buffer_elevation", "Buffer Elevation (ft)")
