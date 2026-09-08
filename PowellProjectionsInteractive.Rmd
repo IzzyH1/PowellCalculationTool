@@ -19,6 +19,47 @@ library("rhandsontable")
 ```{r Projection Calculation, echo=FALSE, warning=FALSE, message=FALSE}
 
 # Sets up table inputs
+inflow <- data.frame(
+  Parameter = c("Inflow Volume into Lake Powell (MAF/yr)", "Length of Inflow Period (months)"),
+  stage_1 = c(4.2,1),
+  stage_2 = c(4.5,12),
+  stage_3 = c(5,12),
+  check.names = FALSE
+)
+
+# Makes table editable
+output$inflow <- renderRHandsontable({
+  rhandsontable(inflow)%>%
+  hot_col("Parameter", readOnly = TRUE)
+  })
+
+# Stores table inputs as reactive
+input_inflow <- reactive({
+  req(input$inflow)
+  hot_to_r(input$inflow)
+})
+
+inflow_values <- reactive({
+  tbl <- input_inflow()
+  list(inflow = as.numeric(tbl[1, -1]),
+  inflow_time = as.numeric(tbl[2, -1])
+  )
+})
+
+# Calculates date ranges and renders text
+output$inflow_date_ranges <- renderText({
+  inflow_time <- unlist(inflow_values()$inflow_time)
+  result_list<- fCalculateDateRange(inflow_time, "Inflow")
+  
+  HTML(
+    paste(
+      unlist(na.omit(result_list)),
+      collapse = "<br>"
+    )
+  )
+})
+
+
 additional_flow <- data.frame(
   Parameter = c("Additional Inflow to Lake Powell (MAF)", "Length of Addtional Inflow Period (months)"),
   stage_1 = c(0, 1), 
@@ -26,6 +67,30 @@ additional_flow <- data.frame(
   stage_3 = c(0, 12),
   check.names = FALSE
 )
+
+output$additional_flow <- renderRHandsontable({
+    rhandsontable(additional_flow)%>%
+    hot_col("Parameter", readOnly = TRUE)
+  })
+
+input_flow <- reactive({
+  req(input$additional_flow)
+  hot_to_r(input$additional_flow)
+})
+
+output$add_inflow_date_ranges <- renderText({
+  add_time <- unlist(input_flow()[2,-1])
+  result_list<- fCalculateDateRange(add_time, "Additional Inflow")
+  
+  HTML(
+    paste(
+      unlist(na.omit(result_list)),
+      collapse = "<br>"
+    )
+  )
+})
+
+
 
 release <- data.frame(
   Parameter = c("Release Flow from Lake Powell (MAF/yr)", "Length of Release Stage (months)"),
@@ -35,85 +100,41 @@ release <- data.frame(
   check.names = FALSE
 )
 
-inflow <- data.frame(
-  Parameter = c("Inflow Volume into Lake Powell (MAF/yr)", "Length of Inflow Period (months)"),
-  stage_1 = c(4.2,1),
-  stage_2 = c(4.5,12),
-  stage_3 = c(7,12),
-  check.names = FALSE
-)
-
-
-output$additional_flow <- renderRHandsontable({
-    rhandsontable(additional_flow)%>%
-    hot_col("Parameter", readOnly = TRUE)
-  })
-
 output$release <- renderRHandsontable({
     rhandsontable(release)%>%
     hot_col("Parameter", readOnly = TRUE)
   })
-
-output$inflow <- renderRHandsontable({
-  rhandsontable(inflow)%>%
-  hot_col("Parameter", readOnly = TRUE)
-  })
-
-output$inflow_ui <- renderUI({
-  
-  if (!isTRUE(input$CRMMS_Inflow)) {
-    
-    rHandsontableOutput(
-      "inflow",
-      height = "200px"
-    )
-    
-  }
-})
-
-
-input_flow <- reactive({
-  req(input$additional_flow)
-  hot_to_r(input$additional_flow)
-})
 
 input_release <- reactive({
   req(input$release)
   hot_to_r(input$release)
 })
 
-input_inflow <- reactive({
-  req(input$inflow)
-  hot_to_r(input$inflow)
-})
-
-
-inflow_values <- reactive({
-  if (isFALSE(input$CRMMS_Inflow)){
-    tbl <- input_inflow()
-    list(inflow = as.numeric(tbl[1, -1]),
-    inflow_time = as.numeric(tbl[2, -1])
+output$release_date_ranges <- renderText({
+  release_time <- unlist(input_release()[2,-1])
+  result_list<- fCalculateDateRange(release_time, "Release")
+  
+  HTML(
+    paste(
+      unlist(na.omit(result_list)),
+      collapse = "<br>"
     )
-  }else{
-    list(inflow = "CRMMS", inflow_time = 22) 
-  }
+  )
 })
 
-output$inflow_date_ranges <- renderText({
+#output$inflow_ui <- renderUI({
   
-  if (!isTRUE(input$CRMMS_Inflow)) {
-    inflow_time <- unlist(inflow_values()$inflow_time)
-    result_list<- fCalculateDateRange(inflow_time, "Inflow")
-  
-    HTML(
-      paste(
-        unlist(na.omit(result_list)),
-        collapse = "<br>"
-      )
-    )
-  }
-})
-  
+  #if (!isTRUE(input$CRMMS_Inflow)) {
+    
+   # rHandsontableOutput(
+    #  "inflow",
+     # height = "20px"
+    #)
+    
+#  }
+#})
+
+# Key elevation Input  
 key_elev_df <- reactive({
   # Use inputs if available, else use default values (3500 and 3490)
   if (is.null(input$buffer_elevation) || input$buffer_elevation == ""){
@@ -143,10 +164,10 @@ projection_calculated <- reactive({
   release_time <- as.numeric(tbl[4, -1])
   
   
-  req(length(add_release) > 0, !all(is.na(add_release)))
-  req(length(add_time) > 0, !all(is.na(add_time)))
-  req(length(release) > 0, !all(is.na(release)))
-  req(length(release_time) > 0, !all(is.na(release_time)))
+  #req(length(add_release) > 0, !all(is.na(add_release)))
+  #req(length(add_time) > 0, !all(is.na(add_time)))
+  #req(length(release) > 0, !all(is.na(release)))
+  #req(length(release_time) > 0, !all(is.na(release_time)))
   
   result <- ProjectPowell(
     Inflow = inflow_values()$inflow,
@@ -174,29 +195,9 @@ projection_calculated <- reactive({
   result
 })
 
-output$add_inflow_date_ranges <- renderText({
-  add_time <- unlist(input_flow()[2,-1])
-  result_list<- fCalculateDateRange(add_time, "Additional Inflow")
-  
-  HTML(
-    paste(
-      unlist(na.omit(result_list)),
-      collapse = "<br>"
-    )
-  )
-})
 
-output$release_date_ranges <- renderText({
-  release_time <- unlist(input_release()[2,-1])
-  result_list<- fCalculateDateRange(release_time, "Release")
-  
-  HTML(
-    paste(
-      unlist(na.omit(result_list)),
-      collapse = "<br>"
-    )
-  )
-})
+
+
 
 # Adds 24 MS plot to projection
 CRMMS_projection <- fAutoReadCRMMS24MS("Lake Powell", "Pool Elevation")
@@ -259,78 +260,76 @@ fluidPage(
 )
 ```
 <small><i> This article is part of a National Oceanic and Atmospheric Administration (NOAA) funded project to improve tools to communicate and manage risks of water shortages in the Colorado River Basin. </i></small><br /><br />
-<h2>Instructions: </h2><br />
-Type inputs into the tables/boxes bellow and watch the graph update in real time. <br /><br/>
-*Inflow:* This tool uses the CRMMS 24 Month Study 10th Percentile projection of inflow as the default. If you would like to change these inflows, uncheck the box below. Row 1 describes the annual inflow volume into Lake Powell in MAF/yr. Row 2 describes 
+
+<h2>Instructions: </h2>
+Input the annual regulated inflow, reduction in consumptive use, and annual release into the tables/boxes bellow. The graph near the bottom of the document will update in real time. See if you can keep Lake Powell above your key elevations in low water conditions. <br /><br/>
+
+<h3> Inflow: </h3> This tool uses the CRMMS 24 Month Study 10th Percentile projection of inflow as the default. Row 1 describes the annual regulated inflow volume into Lake Powell in MAF/yr. Row 2 describes the number of months spent at this average annual inflow. The proportion of the annual rate that flows in per month is based on the historical release hydrodata. For example, if I input 5 in row 1 and 6 for row 2, the historical monthly proportion of the inflow multiplied by 5 MAF would be released for each month for 6 months. <br />
 ```{r inflow inputs, results = "show"}
-checkboxInput("CRMMS_Inflow", "Use CRMMS 24 Month Study 10th Percentile as Inflow Projection?", value = TRUE)
-
-uiOutput("inflow_ui")
+rHandsontableOutput("inflow")
 uiOutput("inflow_date_ranges")
+checkboxInput("CRMMS_input", "Display CRMMS 24 MS MIN PROB Elevation Projection?", value = FALSE)
 ```
-*Additional Inflow:* Row 1 allows you to simulate an additional flow into Lake Powell in million-acre feet (MAF). Row 2 describes the time in months it takes for the complete inflow volume to reach Lake Powell. For example, if you input 1 in row 1 and 6 in row 2, this would add 1/6 MAF of water per month for 6 months.  Lake Powell’s projected elevation without the input additional inflow will be plotted in magenta. Lake Powell’s projected elevation with the input additional inflow will be plotted in green.<br />
+<br /><br />
+<h3>Additional Inflow: </h3> Row 1 allows you to simulate an additional flow into Lake Powell in million-acre feet (MAF). Row 2 describes the time in months it takes for the complete inflow volume to reach Lake Powell. For example, if you input 1 in row 1 and 6 in row 2, this would add 1/6 MAF of water per month for 6 months.  Lake Powell’s projected elevation without the input additional inflow will be plotted in magenta. Lake Powell’s projected elevation with the input additional inflow will be plotted in green.<br />
 
-```{r inflow table, results = "show"}
+```{r add inflow table, results = "show"}
 rHandsontableOutput("additional_flow")
 uiOutput("add_inflow_date_ranges")
 ```
 <br /><br />
-*Release Schedule:* Row 1 allows you to set the release rate for Lake Powell in million acre-feet per year (MAF/yr). Row 2 allows you to set the number of months that water is being released from Lake Powell at this average annual rate. The proportion of the annual rate that is released per month is based on the historical release hydrodata. For example, if I input 6 in row 1 and 9 for row 2, the historical monthly proportion of the release multiplied by 6 MAF would be released for each month for 9 months. <br />
+<h3>Release Schedule:</h3> Row 1 allows you to set the release rate for Lake Powell in million acre-feet per year (MAF/yr). Row 2 allows you to set the number of months that water is being released from Lake Powell at this average annual rate. The proportion of the annual rate that is released per month is based on the historical release hydrodata. For example, if I input 6 in row 1 and 9 for row 2, the historical monthly proportion of the release multiplied by 6 MAF would be released for each month for 9 months. <br />
 
 ```{r release table, results = "show"}
 rHandsontableOutput("release")
 uiOutput("release_date_ranges")
 ```
 <br /><br />
-*Key Elevations: * You can input a buffer and catastrophic elevation in their respective boxes. These elevations will appear on the plot as a labeled red dashed line. The default buffer and catastrophic elevations are 3500 ft. (Final EIS Critical Elevation) and 3490 ft. (Top of the Penstocks, often considered the minimum elevation for power generation) respectively. If nothing is inputted in an elevation text box, these defaults will be plotted. 
+<h3> Key Elevations: </h3>
+You can input a buffer and catastrophic elevation in their respective boxes. These elevations will appear on the plot as a labeled red dashed line. The default buffer and catastrophic elevations are 3500 ft. (Final EIS Critical Elevation) and 3490 ft. (Top of the Penstocks, often considered the minimum elevation for power generation) respectively. If nothing is inputted in an elevation text box, these defaults will be plotted. 
 
 
 ```{r elevation inputs, results = "show"}
 textInput("buffer_elevation", "Buffer Elevation (ft)")
 textInput("catastrophic_elevation", "Catastrophic Elevation (ft)")
 
-checkboxInput("CRMMS_input", "Display CRMMS 24 MS MIN PROB Elevation Projection?", value = FALSE)
 
 #Outputs
-plotOutput("projectionplot")
+plotOutput("projectionplot", height = "500px")
 ```
-***Annual Table:*** This table shows the total annual inflow and release volume for the water years spanned by the model (and the 2025 water year for reference). <br />
+<h3>Annual Table:</h3>
+This table shows the total annual inflow and release volume for the water years spanned by the model (and the 2025 water year for reference). <br />
 A water year spans October 1st  - September 30th. A water year is named based on the latest calendar year in its range. For example, If a water year starts on October 1st 2025 and ends September 30th 2026, it would be the 2026 water year.
 
 ```{r annual table, results="show"}
 tableOutput("annualTable")
 
 ```
-**General Tips:**<br />
-1. You may initially see an error message until you input at least one additional inflow stage and one release stage, or while your inputs are being processed. <br />
-2. The graph/table will become transparant while it is loading, and will become solid when it is finished.<br />
-3. All inputs need to be numeric (don't type in the units)<br />
-4. *Some Elevation Reference Values:* 
+<h2>General Tips:</h2>
+1. The graph/table will become transparant while it is loading, and will become solid when it is finished.<br />
+2. All inputs need to be numeric (don't type in the units)<br />
+3. <h4> Some Elevation Reference Values:</h4>
 3525 ft. was the Lake Powell target elevation outlined in the Drought Response Operations Agreement (DROA) <br />
 3370 ft. is often cited as "deadpool" or when we would no longer be able to release water through the Glen Canyon Dam.<br />
 
-**Table Tips:**<br /> 
+<h2>Table Tips:</h2> 
 1. A stage duration needs to be inputted for each additional flow/release input, or you will receive an error message. <br />
-2. You can input a stage duration that is longer than 24 months, but the model will only plot 24 months. <br />
-3. You do not need to provide inputs for all of the stages, and the stages for additional inflow and release do not have to match. <br />
-4. After the table there will be text displaying the date ranges of each stage based on your inputs. This is to make it easier to determine if your stages line up with water years, calendar years, etc., and to provide clarity.<br />
-5. *Some Inflow/Release Reference Values:* <br />
+2. You do not need to provide inputs for all of the stages, and the stages do not have to match. <br />
+3. After the table there will be text displaying the date ranges of each stage based on your inputs. This is to make it easier to determine if your stages line up with water years, calendar years, etc., and to provide clarity.<br />
+4. <h4>Some Inflow/Release Reference Values:</h4> <br />
 In 2026 an additional 1 MAF was released from Flaming Gorge over the course of 12 months. <br />
 The annual release for the 2026 water year is 6 MAF/yr. The Final EIS described the annual release from Lake Powell as ranging from 5 MAF/yr - 12 MAF/yr
 <br /><br />
 
-## Data Sources:  
-<br />
-Current storage of Lake Powell, Historical Release Data, and Historical Evaporation Data  were pulled from Reclamation’s Hydrodata: https://www.usbr.gov/uc/water/hydrodata/reservoir_data/site_map.html 
+<h2> Data Sources:</h2>  
+Current storage of Lake Powell, Historical Release Data, Historical Inflow Data, and Historical Evaporation Data  were pulled from Reclamation’s Hydrodata: https://www.usbr.gov/uc/water/hydrodata/reservoir_data/site_map.html 
 <br /><br />
-The Inflow forecast used is the most recent minimum probable inflow scenario from the Colorado River Mid-term Modeling System (CRMMS) 24-Month Study: https://www.usbr.gov/uc/water/hydrodata/crmms/current/crmms_nav.html 
+The default inflow forecast used is the most recent minimum probable inflow scenario from the Colorado River Mid-term Modeling System (CRMMS) 24-Month Study: https://www.usbr.gov/uc/water/hydrodata/crmms/current/crmms_nav.html 
 <br /><br />
 Conversion between Lake Powell’s storage and elevation is based on the USGS Elevation-area-capacity tables for Lake Powell: https://www.sciencebase.gov/catalog/item/614ccd07d34e0df5fb9868e2 
+<br />
 
- 
-
-## Assumptions:  
-<br /><br />
-The proportion of the annual release per month was based on the historical Lake Powell release data from 2021. This year was chosen due to its’ recency and similarly low flows. 
+<h2>Assumptions:</h2>  
+The proportion of the annual release and annual inflow per month was based on the historical Lake Powell release data from 2021. This year was chosen due to its’ recency and similarly low flows. 
 <br /><br />
 The evaporation was estimated using a linear regression between historical storage and evaporation rates. 

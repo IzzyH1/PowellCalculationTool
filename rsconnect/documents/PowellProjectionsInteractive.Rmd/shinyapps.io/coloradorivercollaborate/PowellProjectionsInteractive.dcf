@@ -5,7 +5,7 @@ account: coloradorivercollaborate
 server: shinyapps.io
 hostUrl: https://api.shinyapps.io/v1
 appId: 17633350
-bundleId: 12504665
+bundleId:
 url: https://coloradorivercollaborate.shinyapps.io/PowellProjectionsInteractive/
 version: 1
 asMultiple: FALSE
