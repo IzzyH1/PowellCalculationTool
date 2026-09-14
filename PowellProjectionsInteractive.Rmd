@@ -3,9 +3,8 @@ title: "Can You Save Lake Powell?"
 output: html_document
 runtime: shiny
 date: "2026-09-04"
-authors: Isabel Hinton, Brittany Fager, Caitlyn Andrus, Michael Jaquez, Anabelle Myers, Erik Porse, David Rosenberg
 ---
-
+Created By: Isabel Hinton, Brittany Fager, Caitlyn Andrus, Michael Jaquez, Anabelle Myers, Erik Porse, David Rosenberg
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
 
@@ -61,7 +60,7 @@ output$inflow_date_ranges <- renderText({
 
 
 additional_flow <- data.frame(
-  Parameter = c("Additional Inflow to Lake Powell (MAF)", "Length of Addtional Inflow Period (months)"),
+  Parameter = c("Additional Inflow (MAF)", "Length of Additional Inflow Period (months)"),
   stage_1 = c(0, 1), 
   stage_2 = c(1, 12),
   stage_3 = c(0, 12),
@@ -93,7 +92,7 @@ output$add_inflow_date_ranges <- renderText({
 
 
 release <- data.frame(
-  Parameter = c("Release Flow from Lake Powell (MAF/yr)", "Length of Release Stage (months)"),
+  Parameter = c("Release Flow (MAF/yr)", "Length of Release Stage (months)"),
   stage_1 = c(6,1),
   stage_2 = c(6,12),
   stage_3 = c(6,12),
@@ -263,15 +262,22 @@ fluidPage(
 
 <h2>Instructions: </h2>
 Input the annual regulated inflow, reduction in consumptive use, and annual release into the tables/boxes bellow. The graph near the bottom of the document will update in real time. See if you can keep Lake Powell above your key elevations in low water conditions. <br /><br/>
-
-<h3> Inflow: </h3> This tool uses the CRMMS 24 Month Study 10th Percentile projection of inflow as the default. Row 1 describes the annual regulated inflow volume into Lake Powell in MAF/yr. Row 2 describes the number of months spent at this average annual inflow. The proportion of the annual rate that flows in per month is based on the historical release hydrodata. For example, if I input 5 in row 1 and 6 for row 2, the historical monthly proportion of the inflow multiplied by 5 MAF would be released for each month for 6 months. <br />
+<h3> Background: </h3>
+This figure displays the agreement among 18 hydrologic ensembles on how low both individual years and multi-year sequences of natural flow could get (natural flow being the hypothetical flow in the system without any consumptive use or reservoir operations). For each sequence length shown, the figure takes each ensemble's lowest average flow sequence for that duration, then groups the 18 ensembles into three bands of six. The red dashed line marks the lowest historical average flow sequence observed for each duration. The solid red line shows the USBR's 24-month study probable minimum forecast, adjusted by adding the recent average of Upper Basin consumptive uses and losses, since the 24-month study reports unregulated inflow rather than natural flow.
+```{r duration figure, results = "show"}
+fluidPage(
+  img(src = "DurationFigure.png", height = "300px")
+)
+```
+<h3> Inflow: </h3> 
+This tool uses the CRMMS 24 Month Study 10th Percentile projection of inflow as the default. Row 1 describes the annual regulated inflow volume into Lake Powell in MAF/yr. Row 2 describes the number of months spent at this average annual inflow. The proportion of the annual rate that flows in per month is based on the historical release hydrodata. For example, if I input 5 in row 1 and 6 for row 2, the historical monthly proportion of the inflow multiplied by 5 MAF would flow into Powell for each month for 6 months. <br />
 ```{r inflow inputs, results = "show"}
 rHandsontableOutput("inflow")
 uiOutput("inflow_date_ranges")
 checkboxInput("CRMMS_input", "Display CRMMS 24 MS MIN PROB Elevation Projection?", value = FALSE)
 ```
 <br /><br />
-<h3>Additional Inflow: </h3> Row 1 allows you to simulate an additional flow into Lake Powell in million-acre feet (MAF). Row 2 describes the time in months it takes for the complete inflow volume to reach Lake Powell. For example, if you input 1 in row 1 and 6 in row 2, this would add 1/6 MAF of water per month for 6 months.  Lake Powell’s projected elevation without the input additional inflow will be plotted in magenta. Lake Powell’s projected elevation with the input additional inflow will be plotted in green.<br />
+<h3>Additional Inflow: </h3> Row 1 allows you to simulate an additional flow into Lake Powell in million-acre feet (MAF). This additional inflow may represent a reduction in upstream consumptive use, or releases from CRSP Upper Initial Units (upstream reservoirs). Row 2 describes the time in months it takes for the complete inflow volume to reach Lake Powell. For example, if you input 1 in row 1 and 6 in row 2, this would add 1/6 MAF of water per month for 6 months.  Lake Powell’s projected elevation without the input additional inflow will be plotted in magenta. Lake Powell’s projected elevation with the input additional inflow will be plotted in green.<br />
 
 ```{r add inflow table, results = "show"}
 rHandsontableOutput("additional_flow")
@@ -307,21 +313,27 @@ tableOutput("annualTable")
 ```
 <h2>General Tips:</h2>
 1. The graph/table will become transparant while it is loading, and will become solid when it is finished.<br />
-2. All inputs need to be numeric (don't type in the units)<br />
-3. <h4> Some Elevation Reference Values:</h4>
-3525 ft. was the Lake Powell target elevation outlined in the Drought Response Operations Agreement (DROA) <br />
+2. All inputs need to be numeric (don't type in the units)<br /><br />
+<b>Some Elevation Reference Values:</b><br />
 3370 ft. is often cited as "deadpool" or when we would no longer be able to release water through the Glen Canyon Dam.<br />
+The 2027 - 2028 Operational Guidelines outlined different potential releases based on the projected elevation of Lake Powell in October of that water year. There are three elevation ranges: Below 3540 feet, between 3540 feet and 3565 feet, and above 3565 feet. 
+
+
 
 <h2>Table Tips:</h2> 
-1. A stage duration needs to be inputted for each additional flow/release input, or you will receive an error message. <br />
-2. You do not need to provide inputs for all of the stages, and the stages do not have to match. <br />
-3. After the table there will be text displaying the date ranges of each stage based on your inputs. This is to make it easier to determine if your stages line up with water years, calendar years, etc., and to provide clarity.<br />
-4. <h4>Some Inflow/Release Reference Values:</h4> <br />
+1. A stage duration needs to be inputted for each inflow, additional flow, and release input, or you will receive an error message. <br />
+2. You do not need to provide inputs for all of the stages, and the stages across inputs do not have to match. <br />
+3. After the table there will be text displaying the date ranges of each stage based on your inputs. This is to make it easier to determine if your stages line up with water years, calendar years, etc., and to provide clarity.<br /><br />
+<b>Some Inflow/Release Reference Values:</b><br />
 In 2026 an additional 1 MAF was released from Flaming Gorge over the course of 12 months. <br />
-The annual release for the 2026 water year is 6 MAF/yr. The Final EIS described the annual release from Lake Powell as ranging from 5 MAF/yr - 12 MAF/yr
+The annual release for the 2026 water year is 6 MAF/yr.<br />
+The Final EIS described the annual release from Lake Powell as ranging from 5 MAF/yr - 12 MAF/yr.
 <br /><br />
 
-<h2> Data Sources:</h2>  
+<h2> Data Sources:</h2>
+Hydrologic Data Ensembles for Figure 1 were sourced from the following article: 
+Salehabadi, H., Tarboton, D. (2024). R Scripts for Evaluating Annual Streamflow Ensemble Metrics and Data and Results from their Application in the Colorado River Basin, HydroShare, https://doi.org/10.4211/hs.d7b65c91dda047e1969a9f9cd09b489f
+<br /><br />
 Current storage of Lake Powell, Historical Release Data, Historical Inflow Data, and Historical Evaporation Data  were pulled from Reclamation’s Hydrodata: https://www.usbr.gov/uc/water/hydrodata/reservoir_data/site_map.html 
 <br /><br />
 The default inflow forecast used is the most recent minimum probable inflow scenario from the Colorado River Mid-term Modeling System (CRMMS) 24-Month Study: https://www.usbr.gov/uc/water/hydrodata/crmms/current/crmms_nav.html 
@@ -329,7 +341,16 @@ The default inflow forecast used is the most recent minimum probable inflow scen
 Conversion between Lake Powell’s storage and elevation is based on the USGS Elevation-area-capacity tables for Lake Powell: https://www.sciencebase.gov/catalog/item/614ccd07d34e0df5fb9868e2 
 <br />
 
+
 <h2>Assumptions:</h2>  
+The ensembles used in Figure 1. come from research by Homa Salehabadi and David Tarboton (Utah State University), who developed a set of plausible future streamflow "storylines" for the Colorado River Basin: combining historical, paleo-reconstructed, and climate-informed data to help address the lack of consensus on how to represent future hydrology
+<br /><br />
 The proportion of the annual release and annual inflow per month was based on the historical Lake Powell release data from 2021. This year was chosen due to its’ recency and similarly low flows. 
 <br /><br />
 The evaporation was estimated using a linear regression between historical storage and evaporation rates. 
+<br />
+
+<h3>Contact:</h3>
+Feel free to email questions/issues to: <br />
+Isabel Hinton - isabel.hinton@usu.edu <br />
+David Rosenberg - david.rosenberg@usu.edu

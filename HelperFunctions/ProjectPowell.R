@@ -233,11 +233,14 @@ project_storage <- function(inflow, outflow, Storage_Data, time_grid)
 
 fplotprojection<- function(projection, elevation_input = NULL){
 #Sets key elevations for graph
-#bathy$dfPowellBathymetry$`ELEVATION (feet)`[which.min(abs(5000000 - bathy$dfPowellBathymetry$`Active Storage (acre-feet)`))]
+#bathy$dfPowellBathymetry$`Total Storage (acre-feet)`[which.min(abs(3525 - bathy$dfPowellBathymetry$`ELEVATION (feet)`))]
   elevation_ticks <- data.frame(elevation = c(3446, 3473, 3496,3515, 3533, 3549), label = c("2", "3","4","5", "6", "7"))
   
   key_elevations <- rbind(elevation_ticks, elevation_input)
   
+#Makes list of October dates
+  october_data <- projection %>%
+    filter(lubridate::month(datetime) == 10)
   # Sets colors for graph
   labels <- unique(projection$label)
   release_labels <- setdiff(labels, c("No Additional Release", "24MS MIN PROB"))
@@ -250,22 +253,32 @@ fplotprojection<- function(projection, elevation_input = NULL){
        aes(x = datetime, y = elevation, color = label)) +
     geom_line(linewidth = 1.2) +
   
-    scale_color_manual(name = "Operation Strategy", 
+    scale_color_manual(name = "Operation Strategy:", 
       values = color_values) +
   
-    labs(title = "Lake Powell Elevation Projection", x = 
+    labs(title = "Lake Powell Projection", x = 
          "Date", y = "Elevation(ft.)" )+
   
   # Plots Right side axis
     geom_hline(yintercept = elevation_input$elevation, color = "red", 
              linetype = "dashed", linewidth = 1.2) +
+  
+    #October callout
+    geom_text_repel(data = october_data, aes(x = datetime, y = elevation, label = paste0("October Elevation: ", elevation, " ft.") ), box.padding = 1.5, force = 2, size = 4)+
+    #annotate("text", x = october_data$datetime, y = october_data$elevation, 
+             #color = "black", size = 4, label = paste0("October Elevation: ", october_data$elevation, " ft."))+
+    
     scale_y_continuous(name = "Elevation (ft.)",
             sec.axis = sec_axis(~.*1, breaks = key_elevations$elevation,
                   labels = key_elevations$label, name = " Active Storage(MAF)" )) +
     
-    theme(axis.title = element_text(size = 18), 
+    theme(plot.title = element_text(size = 20),
+          axis.title = element_text(size = 18, face = "bold"), 
           axis.ticks = element_line(linewidth = 1.5),
-          axis.text.y = element_text(size = 15))  
+          axis.text.y = element_text(size = 15),
+          legend.title = element_text(size = 15, face = "bold"),
+          legend.text = element_text(size = 15),
+          legend.position = "bottom")  
             
 }
 
@@ -316,7 +329,7 @@ fAnnualValues <- function(df, parameter, Storage_Data){
  
 
 # Test Projections
-#projection <- ProjectPowell(Inflow = c(11,9), Inflow_Time = c(12,12), Release = c(5,6), Release_Time = c(12, 12), Add_Release = 1, Add_Time = 12, Duration = 36, Storage_Data = hydrodata)
+#projection <- ProjectPowell(Inflow = "CRMMS", Inflow_Time = 0, Release = c(5,6), Release_Time = c(12, 12), Add_Release = 1, Add_Time = 12, Storage_Data = hydrodata)
 #elevation_input <- data.frame(elevation = 3500, label = "3500 label")
 #annual_outflow <- fAnnualValues(projection, "outflow", hydrodata)
 
