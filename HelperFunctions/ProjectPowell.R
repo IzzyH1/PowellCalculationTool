@@ -329,7 +329,7 @@ fAnnualValues <- function(df, parameter, Storage_Data){
  
 
 # Test Projections
-#projection <- ProjectPowell(Inflow = "CRMMS", Inflow_Time = 0, Release = c(5,6), Release_Time = c(12, 12), Add_Release = 1, Add_Time = 12, Storage_Data = hydrodata)
+#projection <- ProjectPowell(Inflow = c(4.2,4.5,5), Inflow_Time = c(1,12,12), Release = c(5,6), Release_Time = c(12, 12), Add_Release = 1, Add_Time = 12, Storage_Data = hydrodata)
 #elevation_input <- data.frame(elevation = 3500, label = "3500 label")
 #annual_outflow <- fAnnualValues(projection, "outflow", hydrodata)
 

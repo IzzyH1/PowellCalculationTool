@@ -1,0 +1,87 @@
+---
+title: "PowellGame"
+author: "Isabel Hinton"
+date: "2026-09-15"
+output: html_document
+runtime: shiny
+---
+
+```{r setup, echo=FALSE, message = FALSE, include = FALSE}
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)
+source("HelperFunctions/ProjectPowell.R")
+```
+
+```{r server, include=FALSE}
+server<- function(input, output, session){
+  
+  
+  time_step_lengths <- c(NULL, 3, 3, 6)
+  submitted <- reactiveVal(NULL)
+  choices <- data.frame(release = 0, add_flow = 0, time_step = 1)
+  
+  
+  #Stores input values after next page button is pushed
+  observeEvent(input$next_step, {
+    submitted(list(
+      release = input$release,
+      add_flow = input$add_flow,
+      time_step = time_step + 1
+    ))
+    
+    choices <- cbind(choices, submitted)
+    
+    # Runs choices through projection functions
+    projection <- reactive({
+      ProjectPowell(
+        Inflow = "CRMMS",
+        Inflow_Time = 1,
+        Release = choices$release,
+        Release_Time = time_step_lengths[1:max(time_step)],
+        Add_Release = choices$add_release,
+        Add_Time = time_step_lengths[1:max(time_step)],
+        Storage_Data = hydrodata
+      )
+    })
+    
+    #Plots Projection
+    key_elev_df <- data.frame(elevation = c(3490, 3500), label = c("Final EIS Critical Elevation: 3500 ft", "Top of Penstocks: 3490 ft."))
+    if (submitted$time_step != 1){
+      output$projection_plot <- renderPlot({
+      fplotprojection(projection, key_elev_df)
+    })
+    }
+    
+    # Clears Input Boxes
+    updateTextInput(session, "release", value = "")
+    updateTextInput(session, "add_flow", value = "")
+  })
+}
+
+```
+
+```{r ui, include=FALSE}
+ui <- fluidPage(
+  sidebarLayout(
+    
+    sidebarPanel(
+      textInput("release", "Release Rate (MAF/yr): "),
+      textInput("add_flow", "Additional Flow (MAF): "),
+      actionButton("next", "Move to Next Time Step")
+    ),
+    
+    mainPanel(
+      fluidPage(img(src = "DurationFigure.png", height = "300px")),
+      plotOutput("projectionplot")
+    )
+  )
+)
+```
+
+```{r creates app, echo=FALSE}
+shinyApp(ui = ui, server = server)
+
+
+
+
+
+
