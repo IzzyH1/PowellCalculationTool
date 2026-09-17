@@ -5,7 +5,6 @@ date: "2026-09-15"
 output: html_document
 runtime: shiny
 ---
-
 ```{r setup, echo=FALSE, message = FALSE, include = FALSE}
 knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)
 source("HelperFunctions/ProjectPowell.R")
@@ -66,7 +65,7 @@ server<- function(input, output, session){
 
 ```{r ui, include=FALSE}
 ui <- fluidPage(
-  img(src = "www/DurationFigure.png", height = "300px"),
+  img(src = "images/DurationFigure.png", height = "250px"),
   
   sidebarLayout(
     
@@ -83,9 +82,11 @@ ui <- fluidPage(
 ```
 
 ```{r creates app, echo=FALSE}
+addResourcePath("images", "www")
 shinyApp(ui = ui, server = server)
 
 
+```
 
 
 

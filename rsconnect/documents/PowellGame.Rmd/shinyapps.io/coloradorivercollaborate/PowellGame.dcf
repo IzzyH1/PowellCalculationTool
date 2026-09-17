@@ -1,0 +1,12 @@
+name: PowellGame
+title: PowellGame
+username: coloradorivercollaborate
+account: coloradorivercollaborate
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 17941636
+bundleId:
+url: https://coloradorivercollaborate.shinyapps.io/PowellGame/
+version: 1
+asMultiple: FALSE
+asStatic: FALSE
