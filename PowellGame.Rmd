@@ -55,11 +55,10 @@ server<- function(input, output, session){
     
     #Plots Projection
     key_elev_df <- data.frame(elevation = c(3490, 3500), label = c("Top of Penstocks: 3490 ft.","Final EIS Critical Elevation: 3500 ft"))
-    #if(max(submitted()$time_step) != 1){
      output$projection_plot <- renderPlot({
-      fplotprojection(projection(), key_elev_df)
+      req(length(submitted()$time_step) > 1)
+       fplotprojection(projection(), key_elev_df)
     })
-    #}
   
 }
 
@@ -78,8 +77,7 @@ ui <- fluidPage(
     ),
     
     mainPanel(
-      plotOutput("projection_plot")
-    )
+      plotOutput("projection_plot"))
   )
 )
 ```
