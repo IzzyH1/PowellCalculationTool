@@ -255,7 +255,7 @@ output$annualTable <- renderTable({
 ```
 ```{r logos, results = "show"}
 fluidPage(
-  img(src = "clipboard-image-2026-09-04.png", width = "500px")
+  img(src = "www/clipboard-image-2026-09-04.png", width = "500px")
 )
 ```
 <small><i> This article is part of a National Oceanic and Atmospheric Administration (NOAA) funded project to improve tools to communicate and manage risks of water shortages in the Colorado River Basin. </i></small><br /><br />
@@ -266,7 +266,7 @@ Input the annual regulated inflow, reduction in consumptive use, and annual rele
 This figure displays the agreement among 18 hydrologic ensembles on how low both individual years and multi-year sequences of natural flow could get (natural flow being the hypothetical flow in the system without any consumptive use or reservoir operations). For each sequence length shown, the figure takes each ensemble's lowest average flow sequence for that duration, then groups the 18 ensembles into three bands of six. The red dashed line marks the lowest historical average flow sequence observed for each duration. The solid red line shows the USBR's 24-month study probable minimum forecast, adjusted by adding the recent average of Upper Basin consumptive uses and losses, since the 24-month study reports unregulated inflow rather than natural flow.
 ```{r duration figure, results = "show"}
 fluidPage(
-  img(src = "DurationFigure.png", height = "300px")
+  img(src = "www/DurationFigure.png", height = "300px")
 )
 ```
 <h3> Inflow: </h3> 

@@ -66,7 +66,6 @@ ProjectPowell <- function(Inflow, Inflow_Time, Release, Release_Time, Add_Releas
   # Defines when Release rule changes
   Release_Time[is.na(Release_Time)] <- 0
   stage_end <- current_date %m+% months(cumsum(Release_Time))
-
   # Defines Release
   release_prop <- fMonthlyProportion("Release volume", "Lake Powell", Storage_Data, 2021)
   
@@ -80,7 +79,7 @@ ProjectPowell <- function(Inflow, Inflow_Time, Release, Release_Time, Add_Releas
           0
         }
         else{
-          release_prop$prop[month(d) == release_prop$month] * Release[i]*1000000
+          release_prop$prop[month(d) == release_prop$month] * Release[stage]*1000000
         }
       }
     )
@@ -109,7 +108,7 @@ ProjectPowell <- function(Inflow, Inflow_Time, Release, Release_Time, Add_Releas
         Add_Release[stage]/Add_Time[stage] * 1000000
       }
     )
-  
+    
   # Merges inflow and add_release
   inflow_i$with_release <- inflow_i$inflow + add_release_i$add_release
   
@@ -239,8 +238,8 @@ fplotprojection<- function(projection, elevation_input = NULL){
   key_elevations <- rbind(elevation_ticks, elevation_input)
   
 #Makes list of October dates
-  october_data <- projection %>%
-    filter(lubridate::month(datetime) == 10)
+  #october_data <- projection %>%
+    #filter(lubridate::month(datetime) == 10)
   # Sets colors for graph
   labels <- unique(projection$label)
   release_labels <- setdiff(labels, c("No Additional Release", "24MS MIN PROB"))
@@ -254,23 +253,23 @@ fplotprojection<- function(projection, elevation_input = NULL){
     geom_line(linewidth = 1.2) +
   
     scale_color_manual(name = "Operation Strategy:", 
-      values = color_values) +
+      values = color_values
+    ) +
   
     labs(title = "Lake Powell Projection", x = 
-         "Date", y = "Elevation(ft.)" )+
+         "Date", y = "Elevation(ft.)" 
+    ) +
   
   # Plots Right side axis
     geom_hline(yintercept = elevation_input$elevation, color = "red", 
-             linetype = "dashed", linewidth = 1.2) +
-  
-    #October callout
-    geom_text_repel(data = october_data, aes(x = datetime, y = elevation, label = paste0("October Elevation: ", elevation, " ft.") ), box.padding = 1.5, force = 2, size = 4)+
-    #annotate("text", x = october_data$datetime, y = october_data$elevation, 
-             #color = "black", size = 4, label = paste0("October Elevation: ", october_data$elevation, " ft."))+
+             linetype = "dashed", linewidth = 1.2
+    ) +
     
     scale_y_continuous(name = "Elevation (ft.)",
-            sec.axis = sec_axis(~.*1, breaks = key_elevations$elevation,
-                  labels = key_elevations$label, name = " Active Storage(MAF)" )) +
+            sec.axis = sec_axis(~. *1, breaks = key_elevations$elevation,
+                  labels = key_elevations$label, name = " Active Storage(MAF)" 
+            )
+    ) +
     
     theme(plot.title = element_text(size = 20),
           axis.title = element_text(size = 18, face = "bold"), 
@@ -279,7 +278,10 @@ fplotprojection<- function(projection, elevation_input = NULL){
           legend.title = element_text(size = 15, face = "bold"),
           legend.text = element_text(size = 15),
           legend.position = "bottom")  
-            
+  #October callout
+  #geom_text_repel(data = october_data, aes(x = datetime, y = elevation, label = paste0("October Elevation: ", elevation, " ft.") ), box.padding = 1.5, force = 2, size = 4)+
+  #annotate("text", x = october_data$datetime, y = october_data$elevation, 
+  #color = "black", size = 4, label = paste0("October Elevation: ", october_data$elevation, " ft."))            
 }
 
 
