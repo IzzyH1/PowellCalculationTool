@@ -8,15 +8,23 @@ runtime: shiny
 ```{r setup, echo=FALSE, message = FALSE, include = FALSE}
 knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)
 source("HelperFunctions/ProjectPowell.R")
+#rsconnect::showLogs()
 ```
 
 ```{r server, include=FALSE}
 server<- function(input, output, session){
+  # Data frame set up for popup messages
   
+  messages <- data.frame(title = c("Welcome!", "Current Date: 1", "Current Date: 2", "Congrats!"), 
+                         description = c("message 1", "message 2", "message 3", "message 4"))
   
   time_step_lengths <- c(0, 3, 3, 6)
   submitted <- reactiveVal(
     data.frame(release = 0, add_flow = 0, time_step = 1)
+  )
+  # Initial Pop up message
+  showModal(
+    modalDialog(title = messages$title[1], messages$description[1])
   )
   
   #Stores input values after next page button is pushed
@@ -33,9 +41,24 @@ server<- function(input, output, session){
       rbind(current, new_choice)
     )
     
+    # Pop up message
+    showModal(
+      modalDialog(title = messages$title[new_choice$time_step], messages$description[new_choice$time_step])        
+    )
+    
     # Clears Input Boxes
     updateTextInput(session, "release", value = "")
     updateTextInput(session, "add_flow", value = "")
+    
+    #Stores current_state values
+    current_storage <- projection()$storage[[length(projection()$storage)]] / 1000000
+    current_elevation <- projection()$elevation[[length(projection()$elevation)]]
+    output$current_state <- renderUI({
+      HTML(paste0(
+        "<b>Current Storage: </b>", current_storage, " MAF<br/>",
+        "<b>Current Elevation: </b>", current_elevation, " ft"
+        ))
+    })
   })
   
     # Runs choices through projection functions
@@ -57,6 +80,7 @@ server<- function(input, output, session){
      output$projection_plot <- renderPlot({
       req(length(submitted()$time_step) > 1)
        fplotprojection(projection(), key_elev_df)
+       
     })
   
 }
@@ -76,13 +100,14 @@ ui <- fluidPage(
     ),
     
     mainPanel(
-      plotOutput("projection_plot"))
+      plotOutput("projection_plot"),
+      uiOutput("current_state"))
   )
 )
 ```
 
 ```{r creates app, echo=FALSE}
-addResourcePath("images", "www")
+#addResourcePath("images", "www")
 shinyApp(ui = ui, server = server)
 
 
