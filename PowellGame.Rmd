@@ -4,6 +4,9 @@ author: "Isabel Hinton"
 date: "2026-09-15"
 output: html_document
 runtime: shiny
+resource_files:
+- www/DurationFigure.png
+- "www/clipboard-image-2026-09-04.png"
 ---
 ```{r setup, echo=FALSE, message = FALSE, include = FALSE}
 knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)
@@ -13,19 +16,38 @@ source("HelperFunctions/ProjectPowell.R")
 
 ```{r server, include=FALSE}
 server<- function(input, output, session){
-  # Data frame set up for popup messages
-  
-  messages <- data.frame(title = c("Welcome!", "Current Date: 1", "Current Date: 2", "Congrats!"), 
-                         description = c("message 1", "message 2", "message 3", "message 4"))
-  
-  time_step_lengths <- c(0, 3, 3, 6)
-  submitted <- reactiveVal(
-    data.frame(release = 0, add_flow = 0, time_step = 1)
+
+#Set up
+time_step_lengths <- c(0, 3, 3, 6)
+
+submitted <- reactiveVal(
+data.frame(release = 0, add_flow = 0, time_step = 1)
   )
+current_storage <- 5.1
+current_elevation <- 3517
+
+  
+title <- c("Welcome!", "Current Date: 1", "Current Date: 2", "Congrats!")
+
+description<- reactive({
+    HTML(
+    paste0("The Current Date is: ", "current_date",
+           "<br/>The Current Storage of Lake Powell is: ", round(current_storage, digits = 1), " MAF",
+           "<br/>The Current Elevation of Lake Powell is: ", current_elevation, " ft.",
+           
+           "<br/><br/> Make operating decisions for the next ", time_step_lengths[submitted()$time_step + 1], 
+           " months.")
+  )
+})
+
+
   # Initial Pop up message
+observeEvent(TRUE,{  
   showModal(
-    modalDialog(title = messages$title[1], messages$description[1])
+    modalDialog(title = title[1], description()
+    )
   )
+}, once = TRUE)
   
   #Stores input values after next page button is pushed
   observeEvent(input$next_step, {
@@ -36,6 +58,8 @@ server<- function(input, output, session){
       add_flow = as.numeric(input$add_flow),
       time_step = max(current$time_step) + 1
     )
+    # If the user does not input something, assume 0
+    new_choice[is.na(new_choice)]<- 0
     
     submitted(
       rbind(current, new_choice)
@@ -43,7 +67,7 @@ server<- function(input, output, session){
     
     # Pop up message
     showModal(
-      modalDialog(title = messages$title[new_choice$time_step], messages$description[new_choice$time_step])        
+      modalDialog(title = title[new_choice$time_step], description())        
     )
     
     # Clears Input Boxes
@@ -55,7 +79,7 @@ server<- function(input, output, session){
     current_elevation <- projection()$elevation[[length(projection()$elevation)]]
     output$current_state <- renderUI({
       HTML(paste0(
-        "<b>Current Storage: </b>", current_storage, " MAF<br/>",
+        "<b>Current Storage: </b>", round(current_storage, digits = 1) , " MAF<br/>",
         "<b>Current Elevation: </b>", current_elevation, " ft"
         ))
     })
@@ -64,7 +88,8 @@ server<- function(input, output, session){
     # Runs choices through projection functions
     projection <- reactive({
       choices <- submitted()
-      ProjectPowell(
+      
+      result<- ProjectPowell(
         Inflow = "CRMMS",
         Inflow_Time = 24,
         Release = choices$release,
@@ -73,6 +98,33 @@ server<- function(input, output, session){
         Add_Time = time_step_lengths[1:max(choices$time_step)],
         Storage_Data = hydrodata
       )
+    
+      # Checks if Powell is empty
+      if (identical(result, "crashed")) {
+      showModal(
+        modalDialog(
+          title = "Empty!",
+          "Lake Powell is empty! It's Active Storage is zero!",
+          easyClose = TRUE,
+          footer = modalButton("OK")
+          )
+        )
+        return(NULL)
+      }
+      
+      # Checks if Powell hits minimum power pool
+      if (any(result$elevation <= 3490)) {
+      showModal(
+        modalDialog(
+          title = "Minimum Power Pool!",
+          "Lake Powell hit minimum power pool! The reservoir's elevation was too low to generate power!",
+          easyClose = TRUE,
+          footer = modalButton("OK")
+          )
+        )
+      }
+      
+      result
     })
     
     #Plots Projection
@@ -96,7 +148,7 @@ ui <- fluidPage(
     sidebarPanel(
       textInput("release", "Release Rate (MAF/yr): "),
       textInput("add_flow", "Additional Flow (MAF): "),
-      actionButton("next_step", "Move to Next Time Step")
+      actionButton("next_step", "Next")
     ),
     
     mainPanel(
@@ -107,7 +159,7 @@ ui <- fluidPage(
 ```
 
 ```{r creates app, echo=FALSE}
-#addResourcePath("images", "www")
+addResourcePath("images", file.path(getwd(),"www"))
 shinyApp(ui = ui, server = server)
 
 
