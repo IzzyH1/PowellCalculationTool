@@ -175,7 +175,8 @@ projection_calculated <- reactive({
     Release_Time = release_time,
     Add_Release = add_release, 
     Add_Time = add_time,
-    Storage_Data = hydrodata
+    Storage_Data = hydrodata,
+    start_date = floor_date(Sys.Date(), unit = "month")
   )
   # Checks if crashed
   if (identical(result, "crashed")) {

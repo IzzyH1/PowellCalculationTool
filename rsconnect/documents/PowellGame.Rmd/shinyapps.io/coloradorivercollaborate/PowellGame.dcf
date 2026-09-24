@@ -5,7 +5,7 @@ account: coloradorivercollaborate
 server: shinyapps.io
 hostUrl: https://api.shinyapps.io/v1
 appId: 17941636
-bundleId: 12590797
+bundleId: 12592287
 url: https://coloradorivercollaborate.shinyapps.io/PowellGame/
 version: 1
 asMultiple: FALSE

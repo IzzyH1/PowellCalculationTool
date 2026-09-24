@@ -19,13 +19,12 @@ hydrodata <- fReadReclamationHydroData(FALSE)
 
 
 
-ProjectPowell <- function(Inflow, Inflow_Time, Release, Release_Time, Add_Release, Add_Time, Storage_Data = hydrodata)
+ProjectPowell <- function(Inflow, Inflow_Time, Release, Release_Time, Add_Release, Add_Time, Storage_Data = hydrodata, start_date)
 {
 
   # Defines time_grid
   duration <- min(sum(Inflow_Time), sum(Release_Time), sum(Add_Time))
-  current_date <- floor_date(Sys.Date(), unit = "month")
-  time_grid<- seq.Date(from = current_date, by = "month", length.out = duration)
+  time_grid<- seq.Date(from = start_date, by = "month", length.out = duration)
   
   #Defines Inflow
   if(any(Inflow == "CRMMS")){
@@ -40,7 +39,7 @@ ProjectPowell <- function(Inflow, Inflow_Time, Release, Release_Time, Add_Releas
     
   }else{
     Inflow_Time[is.na(Inflow_Time)] <- 0
-    stage_end <- current_date %m+% months(cumsum(Inflow_Time))
+    stage_end <- start_date %m+% months(cumsum(Inflow_Time))
     
     # Defines inflow distribution
     inflow_prop <- fMonthlyProportion("Inflow Volume", "Lake Powell", Storage_Data, 2021)
@@ -65,7 +64,7 @@ ProjectPowell <- function(Inflow, Inflow_Time, Release, Release_Time, Add_Releas
   
   # Defines when Release rule changes
   Release_Time[is.na(Release_Time)] <- 0
-  stage_end <- current_date %m+% months(cumsum(Release_Time))
+  stage_end <- start_date %m+% months(cumsum(Release_Time))
   # Defines Release
   release_prop <- fMonthlyProportion("Release volume", "Lake Powell", Storage_Data, 2021)
   
@@ -92,7 +91,7 @@ ProjectPowell <- function(Inflow, Inflow_Time, Release, Release_Time, Add_Releas
   #req(Add_Time)
   #req((length(Add_Time) > 0),
   Add_Time[is.na(Add_Time)] <- 0
-  stage_end <- current_date %m+% months(cumsum(Add_Time))
+  stage_end <- start_date %m+% months(cumsum(Add_Time))
   
   #  Matches releases to dates and places in data frame 
   #if no match add_release = 0
@@ -238,8 +237,8 @@ fplotprojection<- function(projection, elevation_input = NULL){
   key_elevations <- rbind(elevation_ticks, elevation_input)
   
 #Makes list of October dates
-  october_data <- projection %>%
-    filter(lubridate::month(datetime) == 10)
+  #october_data <- projection %>%
+    #filter(lubridate::month(datetime) == 10)
   # Sets colors for graph
   labels <- unique(projection$label)
   release_labels <- setdiff(labels, c("No Additional Release", "24MS MIN PROB"))
@@ -277,11 +276,11 @@ fplotprojection<- function(projection, elevation_input = NULL){
           axis.text.y = element_text(size = 15),
           legend.title = element_text(size = 15, face = "bold"),
           legend.text = element_text(size = 15),
-          legend.position = "bottom") + 
+          legend.position = "bottom") #+ 
   #October callout
-  geom_text_repel(data = october_data, aes(x = datetime, y = elevation, label = paste0("October Elevation: ", elevation, " ft.") ), box.padding = 1.5, force = 2, size = 4)+
-  annotate("text", x = october_data$datetime, y = october_data$elevation, 
-  color = "black", size = 4, label = paste0("October Elevation: ", october_data$elevation, " ft."))            
+  #geom_text_repel(data = october_data, aes(x = datetime, y = elevation, label = paste0("October Elevation: ", elevation, " ft.") ), box.padding = 1.5, force = 2, size = 4)+
+  #annotate("text", x = october_data$datetime, y = october_data$elevation, 
+  #color = "black", size = 4, label = paste0("October Elevation: ", october_data$elevation, " ft."))            
 }
 
 

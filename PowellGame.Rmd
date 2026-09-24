@@ -17,38 +17,60 @@ source("HelperFunctions/ProjectPowell.R")
 ```{r server, include=FALSE}
 server<- function(input, output, session){
 
-#Set up
-time_step_lengths <- c(0, 3, 3, 6)
+# Time frame set up
+start_date <- as.Date("2026-10-01")
+time_step_lengths <- c(3, 3, 6)
+
+# Initial state for initial message
+current_storage <- 5.1
+current_elevation <- 3517
+current_date <- reactiveVal(start_date)
 
 submitted <- reactiveVal(
 data.frame(release = 0, add_flow = 0, time_step = 1)
   )
-current_storage <- 5.1
-current_elevation <- 3517
 
-  
-title <- c("Welcome!", "Current Date: 1", "Current Date: 2", "Congrats!")
-
-description<- reactive({
-    HTML(
-    paste0("The Current Date is: ", "current_date",
-           "<br/>The Current Storage of Lake Powell is: ", round(current_storage, digits = 1), " MAF",
-           "<br/>The Current Elevation of Lake Powell is: ", current_elevation, " ft.",
-           
-           "<br/><br/> Make operating decisions for the next ", time_step_lengths[submitted()$time_step + 1], 
-           " months.")
-  )
-})
-
-
-  # Initial Pop up message
+start_description <- 
+  HTML(
+              paste0("The Current Date is: ", start_date,
+             "<br/>The Current Storage of Lake Powell is: ", current_storage," MAF",
+             "<br/>The Current Elevation of Lake Powell is: ", current_elevation," ft.",
+             
+             "<br/><br/> Make operating decisions for the next 3 months."
+              )
+    )
+# Initial Pop up message
 observeEvent(TRUE,{  
   showModal(
-    modalDialog(title = title[1], description()
-    )
+    modalDialog(title = "Welcome!", start_description)
   )
 }, once = TRUE)
+
+#### Total Release display
+#Calculates total release for time step based on inputted rate
+total_release <- reactive({
   
+  release_prop <- fMonthlyProportion("Release volume", "Lake Powell", hydrodata, 2021)
+  time_grid<- seq.Date(
+    from = current_date(), by = "month", length.out = time_step_lengths[max(submitted()$time_step)]
+    )
+  
+  release_i <- data.frame(datetime = time_grid)
+  release_i$release <- sapply(
+      release_i$datetime,
+      function(d) {
+        release_prop$prop[month(d) == release_prop$month] * as.numeric(input$release)
+      }
+    )
+  release_i$release[is.na(release_i$release)] <- 0
+  return(sum(release_i$release))
+})
+
+output$total_release <- renderUI({
+  paste0("Total Release for this time step: ", round(total_release(),digits = 1), " MAF")
+})
+
+##### When Next button is pushed
   #Stores input values after next page button is pushed
   observeEvent(input$next_step, {
     current <- submitted()
@@ -56,7 +78,7 @@ observeEvent(TRUE,{
     new_choice <- data.frame(
       release = as.numeric(input$release),
       add_flow = as.numeric(input$add_flow),
-      time_step = max(current$time_step) + 1
+      time_step = max(current$time_step)
     )
     # If the user does not input something, assume 0
     new_choice[is.na(new_choice)]<- 0
@@ -65,28 +87,16 @@ observeEvent(TRUE,{
       rbind(current, new_choice)
     )
     
-    # Pop up message
-    showModal(
-      modalDialog(title = title[new_choice$time_step], description())        
-    )
-    
     # Clears Input Boxes
     updateTextInput(session, "release", value = "")
     updateTextInput(session, "add_flow", value = "")
     
-    #Stores current_state values
-    current_storage <- projection()$storage[[length(projection()$storage)]] / 1000000
-    current_elevation <- projection()$elevation[[length(projection()$elevation)]]
-    output$current_state <- renderUI({
-      HTML(paste0(
-        "<b>Current Storage: </b>", round(current_storage, digits = 1) , " MAF<br/>",
-        "<b>Current Elevation: </b>", current_elevation, " ft"
-        ))
-    })
-  })
+  }, priority = 10)
   
-    # Runs choices through projection functions
-    projection <- reactive({
+  
+  
+  # Runs choices through projection functions
+  projection <- eventReactive(input$next_step, {
       choices <- submitted()
       
       result<- ProjectPowell(
@@ -96,7 +106,8 @@ observeEvent(TRUE,{
         Release_Time = time_step_lengths[1:max(choices$time_step)],
         Add_Release = choices$add_flow,
         Add_Time = time_step_lengths[1:max(choices$time_step)],
-        Storage_Data = hydrodata
+        Storage_Data = hydrodata,
+        start_date = start_date
       )
     
       # Checks if Powell is empty
@@ -123,17 +134,62 @@ observeEvent(TRUE,{
           )
         )
       }
-      
-      result
+       result
     })
     
-    #Plots Projection
+  # Pop up message
+    observeEvent(projection(), {
+      current_proj <- projection()
+      req(current_proj)
+      
+      current_storage <- current_proj$storage[[length(current_proj$storage)]] / 1000000
+      current_elevation <- current_proj$elevation[[length(current_proj$elevation)]]
+      time_step_idx <- max(submitted()$time_step)
+      current_date(max(current_proj$datetime))
+      
+      title <- paste0("Current Date: ", format(current_date(), "%B %d, %Y"))
+      
+      description<-
+        HTML(
+          paste0("The Current Date is: ", current_date(),
+             "<br/>The Current Storage of Lake Powell is: ", round(current_storage, digits = 1), " MAF",
+             "<br/>The Current Elevation of Lake Powell is: ", current_elevation, " ft.",
+             
+             "<br/><br/> Make operating decisions for the next ", time_step_lengths[time_step_idx], 
+             " months."
+             )
+        )
+      
+      showModal(
+        modalDialog(title = title, description)        
+      )
+    })  
+      
+
+#Plots Projection
     key_elev_df <- data.frame(elevation = c(3490, 3500), label = c("Top of Penstocks: 3490 ft.","Final EIS Critical Elevation: 3500 ft"))
-     output$projection_plot <- renderPlot({
+    output$projection_plot <- renderPlot({
       req(length(submitted()$time_step) > 1)
-       fplotprojection(projection(), key_elev_df)
-       
-    })
+      fplotprojection(projection(), key_elev_df)
+      })
+      
+    #Updates current state text
+    output$current_state <- renderUI({
+      #Pulls reactive projection to static values
+      req(length(submitted()$time_step) > 1)
+      current_proj <- projection()
+      current_storage <- current_proj$storage[[length(current_proj$storage)]] / 1000000
+      current_elevation <- current_proj$elevation[[length(current_proj$elevation)]]
+      current_date <- max(current_proj$datetime)
+      
+      
+      #Renders Text
+      HTML(paste0(
+          "<b>Current Storage: </b>", round(current_storage, digits = 1) , " MAF<br/>",
+          "<b>Current Elevation: </b>", current_elevation, " ft<br/>",
+          "<b>Current Date: </b>", current_date()
+          ))
+      })
   
 }
 
@@ -147,6 +203,7 @@ ui <- fluidPage(
     
     sidebarPanel(
       textInput("release", "Release Rate (MAF/yr): "),
+      uiOutput("total_release"),
       textInput("add_flow", "Additional Flow (MAF): "),
       actionButton("next_step", "Next")
     ),
