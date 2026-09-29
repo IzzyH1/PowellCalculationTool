@@ -78,7 +78,7 @@ output$total_release <- renderUI({
     new_choice <- data.frame(
       release = as.numeric(input$release),
       add_flow = as.numeric(input$add_flow),
-      time_step = max(current$time_step)
+      time_step = max(current$time_step) + 1
     )
     # If the user does not input something, assume 0
     new_choice[is.na(new_choice)]<- 0
