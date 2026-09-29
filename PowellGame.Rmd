@@ -32,7 +32,7 @@ data.frame(release = 0, add_flow = 0, time_step = 1)
 
 start_description <- 
   HTML(
-              paste0("The Current Date is: ", start_date,
+              paste0("The Current Date is: ", format(start_date, "%B %d"),
              "<br/>The Current Storage of Lake Powell is: ", current_storage," MAF",
              "<br/>The Current Elevation of Lake Powell is: ", current_elevation," ft.",
              
@@ -122,32 +122,49 @@ output$total_release <- renderUI({
         )
         return(NULL)
       }
-      
-      # Checks if Powell hits minimum power pool
-      if (any(result$elevation <= 3490)) {
+       result
+    })
+  
+  observeEvent(projection(),{
+    result <- projection()
+    
+    # Checks if Powell hits minimum power pool
+    if (any(result$elevation <= 3490, na.rm = TRUE)) {
       showModal(
         modalDialog(
           title = "Minimum Power Pool!",
           "Lake Powell hit minimum power pool! The reservoir's elevation was too low to generate power!",
-          easyClose = TRUE,
-          footer = modalButton("OK")
-          )
+          easyClose = FALSE,
+          footer = actionButton("next_modal", "Continue")
         )
-      }
-       result
-    })
+      )
+    }
+    
+    # Checks if Powell hits
+    else if(any(result$elevation <= 3500, na.rm = TRUE)) {
+      showModal(
+        modalDialog(
+          title = "Below Protection Elevation!",
+          "Lake Powell is below the Final EIS Protection Elevation (3500 ft)!",
+          easyClose = FALSE,
+          footer = actionButton("next_modal", "Continue")
+        )
+      )
+    }
+  })
     
   # Pop up message
-    observeEvent(projection(), {
-      current_proj <- projection()
-      req(current_proj)
+    observeEvent(input$next_modal, {
+      removeModal() #Removes warning modals
       
-      current_storage <- current_proj$storage[[length(current_proj$storage)]] / 1000000
-      current_elevation <- current_proj$elevation[[length(current_proj$elevation)]]
+      result <- projection()
+      
+      current_storage <- result$storage[[length(result$storage)]] / 1000000
+      current_elevation <- result$elevation[[length(result$elevation)]]
       time_step_idx <- max(submitted()$time_step)
-      current_date(max(current_proj$datetime))
+      current_date(max(result$datetime))
       
-      title <- paste0("Current Date: ", format(current_date(), "%B %d, %Y"))
+      title <- paste0("Current Date: ", format(current_date(), "%B %d"))
       
       description<-
         HTML(
