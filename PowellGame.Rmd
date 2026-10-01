@@ -19,7 +19,7 @@ server<- function(input, output, session){
 
 # Time frame set up
 start_date <- as.Date("2026-10-01")
-time_step_lengths <- c(3, 3, 6)
+time_step_lengths <- c(0,3, 3, 6)
 
 # Initial state for initial message
 current_storage <- 5.1
@@ -48,27 +48,26 @@ observeEvent(TRUE,{
 
 #### Total Release display
 #Calculates total release for time step based on inputted rate
-total_release <- reactive({
+#total_release <- reactive({
   
-  release_prop <- fMonthlyProportion("Release volume", "Lake Powell", hydrodata, 2021)
-  time_grid<- seq.Date(
-    from = current_date(), by = "month", length.out = time_step_lengths[max(submitted()$time_step)]
-    )
-  
-  release_i <- data.frame(datetime = time_grid)
-  release_i$release <- sapply(
-      release_i$datetime,
-      function(d) {
-        release_prop$prop[month(d) == release_prop$month] * as.numeric(input$release)
-      }
-    )
-  release_i$release[is.na(release_i$release)] <- 0
-  return(sum(release_i$release))
-})
+  #release_prop <- fMonthlyProportion("Release volume", "Lake Powell", hydrodata, 2021)
+  #time_grid<- seq.Date(
+  #  from = current_date(), by = "month", length.out = time_step_lengths[max(submitted()$time_step)]
+#    )
+#  release_i <- data.frame(datetime = time_grid)
+#  release_i$release <- sapply(
+#      release_i$datetime,
+#      function(d) {
+#        release_prop$prop[month(d) == release_prop$month] * as.numeric(input$release)
+#      }
+#    )
+#  release_i$release[is.na(release_i$release)] <- 0
+#  return(sum(release_i$release))
+#})
 
-output$total_release <- renderUI({
-  paste0("Total Release for this time step: ", round(total_release(),digits = 1), " MAF")
-})
+#output$total_release <- renderUI({
+#  paste0("Total Release for this time step: ", round(total_release(),digits = 1), " MAF")
+#})
 
 ##### When Next button is pushed
   #Stores input values after next page button is pushed
@@ -94,7 +93,6 @@ output$total_release <- renderUI({
   }, priority = 10)
   
   
-  
   # Runs choices through projection functions
   projection <- eventReactive(input$next_step, {
       choices <- submitted()
@@ -112,18 +110,48 @@ output$total_release <- renderUI({
     
       # Checks if Powell is empty
       if (identical(result, "crashed")) {
+        showModal(
+          modalDialog(
+            title = "Empty!",
+            "Lake Powell is empty! It's Active Storage is zero!",
+            easyClose = TRUE,
+            footer = actionButton("restart_app","Try Again")
+            )
+        )
+      return(NULL)
+      }
+    result
+    })
+  
+  # Restarts app if Lake Powell is empty
+  observeEvent(input$restart_app,{
+  restart_app()
+  })
+  
+  # Shows end of game summary if at the end of the time horizon
+  observeEvent(submitted(),{
+    if (max(submitted()$time_step) == length(time_step_lengths)){
+      result <- projection()  
+      current_storage <- result$storage[[length(result$storage)]] / 1000000
+      current_elevation <- result$elevation[[length(result$elevation)]]
+      time_step_idx <- max(submitted()$time_step)
+      current_date(max(result$datetime))
+      
       showModal(
         modalDialog(
-          title = "Empty!",
-          "Lake Powell is empty! It's Active Storage is zero!",
-          easyClose = TRUE,
-          footer = modalButton("OK")
-          )
+          title = "Congratulations!",
+          "You've reached the end of the game! The state of Lake Powell at the end of the reservoir is: ",
+          easyClose = FALSE,
+          footer = actionButton("restart_button", "Try Again?")
         )
-        return(NULL)
-      }
-       result
+      )
+    
+      # Restarts app if at the end of the time series if the user clicks the restart button
+      observeEvent(input$restart_button,{
+      restart_app()
     })
+    }
+  })
   
   observeEvent(projection(),{
     result <- projection()
@@ -151,9 +179,32 @@ output$total_release <- renderUI({
         )
       )
     }
+    # Shows end of time step message
+    else{
+      current_storage <- result$storage[[length(result$storage)]] / 1000000
+      current_elevation <- result$elevation[[length(result$elevation)]]
+      time_step_idx <- max(submitted()$time_step)
+      current_date(max(result$datetime))
+      
+      title <- paste0("Current Date: ", format(current_date(), "%B %d"))
+      
+      description<-
+        HTML(
+          paste0("The Current Date is: ", current_date(),
+             "<br/>The Current Storage of Lake Powell is: ", round(current_storage, digits = 1), " MAF",
+             "<br/>The Current Elevation of Lake Powell is: ", current_elevation, " ft.",
+             
+             "<br/><br/> Make operating decisions for the next ", time_step_lengths[time_step_idx], 
+             " months."
+             )
+        )
+      showModal(
+        modalDialog(title = title, description)        
+      )
+    }
   })
     
-  # Pop up message
+  #  Shows Pop up message if a warning modal came up and was closed
     observeEvent(input$next_modal, {
       removeModal() #Removes warning modals
       
@@ -208,6 +259,28 @@ output$total_release <- renderUI({
           ))
       })
   
+
+
+# Restart App logic
+restart_app <- function() {
+  updateNumericInput(session, "release", value = 0)
+  updateNumericInput(session, "add_flow", value = 0)
+  updateSelectInput(session, "time_step", selected = 1)
+  submitted(data.frame(release = 0, add_flow = 0, time_step = 1))
+  
+  removeModal()
+  
+  #Welcome message
+  observeEvent(TRUE,{  
+  showModal(
+    modalDialog(title = "Welcome!", start_description)
+  )
+}, once = TRUE)
+}
+
+
+
+
 }
 
 ```
@@ -220,14 +293,15 @@ ui <- fluidPage(
     
     sidebarPanel(
       textInput("release", "Release Rate (MAF/yr): "),
-      uiOutput("total_release"),
+      #uiOutput("total_release"),
       textInput("add_flow", "Additional Flow (MAF): "),
       actionButton("next_step", "Next")
     ),
     
     mainPanel(
-      plotOutput("projection_plot"),
-      uiOutput("current_state"))
+      uiOutput("current_state"),
+      plotOutput("projection_plot")
+    )  
   )
 )
 ```
