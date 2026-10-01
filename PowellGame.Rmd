@@ -19,7 +19,11 @@ server<- function(input, output, session){
 
 # Time frame set up
 start_date <- as.Date("2026-10-01")
-time_step_lengths <- c(0,3, 3, 6)
+time_step_lengths <- c(0,3, 3, 6, 0)
+
+#Inflow scenario set up
+possible_inflows <- c(2.177,5.142, 5.934)
+inflow <- sample(possible_inflows, 1)
 
 # Initial state for initial message
 current_storage <- 5.1
@@ -96,10 +100,10 @@ observeEvent(TRUE,{
   # Runs choices through projection functions
   projection <- eventReactive(input$next_step, {
       choices <- submitted()
-      
+ 
       result<- ProjectPowell(
-        Inflow = "CRMMS",
-        Inflow_Time = 24,
+        Inflow = inflow,
+        Inflow_Time = sum(time_step_lengths),
         Release = choices$release,
         Release_Time = time_step_lengths[1:max(choices$time_step)],
         Add_Release = choices$add_flow,
@@ -128,7 +132,7 @@ observeEvent(TRUE,{
   restart_app()
   })
   
-  # Shows end of game summary if at the end of the time horizon
+  # Shows end of game summary if at the end of the time horizon. Have to add one because time step has already been updated
   observeEvent(submitted(),{
     if (max(submitted()$time_step) == length(time_step_lengths)){
       result <- projection()  
@@ -267,6 +271,8 @@ restart_app <- function() {
   updateNumericInput(session, "add_flow", value = 0)
   updateSelectInput(session, "time_step", selected = 1)
   submitted(data.frame(release = 0, add_flow = 0, time_step = 1))
+  
+  inflow <- sample(possible_inflows, 1)
   
   removeModal()
   
