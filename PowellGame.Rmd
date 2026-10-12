@@ -19,7 +19,7 @@ server<- function(input, output, session){
 
 # Time frame set up
 start_date <- as.Date("2026-10-01")
-time_step_lengths <- c(3, 3, 6)
+time_step_lengths <- c(0, 3, 3, 6)
 
 #Inflow scenario set up
 possible_inflows <- c(2.177, 5.142, 5.934)
@@ -30,12 +30,29 @@ current_storage <- 5.1
 current_elevation <- 3517
 current_date <- reactiveVal(start_date)
 
+# Initial message
+start_description <- 
+  HTML(
+              paste0("The Current Date is: ", format(start_date, "%B %d"),
+             "<br/>The Current Storage of Lake Powell is: ", current_storage," MAF",
+             "<br/>The Current Elevation of Lake Powell is: ", current_elevation," ft.",
+             
+             "<br/><br/> Make operating decisions for the next 3 months."
+              )
+    )
+observeEvent(TRUE,{  
+  showModal(
+    modalDialog(title = "Welcome!", start_description)
+  )
+}, once = TRUE)
+
 submitted <- reactiveVal(
 data.frame(release = 0, add_flow = 0, time_step = 0)
   )
 
 # Defines projection as a value reactive to submitted
 projection <- reactive({
+  req(submitted()$time_step > 0)
   choices <- submitted()
   print(paste(
     "PROJECTING:",
@@ -44,7 +61,7 @@ projection <- reactive({
     "add_flow =", paste(choices$add_flow, collapse = ",")
   ))
       
-    time_idx <- max(choices$time_step)
+    time_idx <- max(choices$time_step) + 1
  
     result<- ProjectPowell(
         Inflow = inflow,
@@ -64,7 +81,7 @@ projection <- reactive({
             title = "Empty!",
             "Lake Powell is empty! It's Active Storage is zero!",
             easyClose = TRUE,
-            footer = actionButton("restart_app","Try Again")
+            footer = actionButton("restart_button","Try Again")
             )
         )
       return(NULL)
@@ -72,44 +89,7 @@ projection <- reactive({
   result
 })
 
-start_description <- 
-  HTML(
-              paste0("The Current Date is: ", format(start_date, "%B %d"),
-             "<br/>The Current Storage of Lake Powell is: ", current_storage," MAF",
-             "<br/>The Current Elevation of Lake Powell is: ", current_elevation," ft.",
-             
-             "<br/><br/> Make operating decisions for the next 3 months."
-              )
-    )
-# Initial Pop up message
-observeEvent(TRUE,{  
-  showModal(
-    modalDialog(title = "Welcome!", start_description)
-  )
-}, once = TRUE)
 
-#### Total Release display
-#Calculates total release for time step based on inputted rate
-#total_release <- reactive({
-  
-  #release_prop <- fMonthlyProportion("Release volume", "Lake Powell", hydrodata, 2021)
-  #time_grid<- seq.Date(
-  #  from = current_date(), by = "month", length.out = time_step_lengths[max(submitted()$time_step)]
-#    )
-#  release_i <- data.frame(datetime = time_grid)
-#  release_i$release <- sapply(
-#      release_i$datetime,
-#      function(d) {
-#        release_prop$prop[month(d) == release_prop$month] * as.numeric(input$release)
-#      }
-#    )
-#  release_i$release[is.na(release_i$release)] <- 0
-#  return(sum(release_i$release))
-#})
-
-#output$total_release <- renderUI({
-#  paste0("Total Release for this time step: ", round(total_release(),digits = 1), " MAF")
-#})
 
 ##### When Next button is pushed
   #Stores input values after next page button is pushed
@@ -141,20 +121,19 @@ observeEvent(TRUE,{
   
   })
 
-  # Restarts app if Lake Powell is empty
-  observeEvent(input$restart_app,{
-  restart_app()
-  })
   
-  # Shows end of game summary if at the end of the time horizon
+  # Modal logic
   observeEvent(projection(),{
+    req(length(submitted()$time_step) > 1)
+    result <- projection() 
     print(paste(
   "NEXT_STEP SECOND OBSERVER:",
   max(submitted()$time_step),
   "\n"
 ))
+    # Shows end of game summary if at the end of the time horizon
     if (max(submitted()$time_step) == length(time_step_lengths)){
-      result <- projection()  
+  
       current_storage <- result$storage[[length(result$storage)]] / 1000000
       current_elevation <- result$elevation[[length(result$elevation)]]
       current_date(max(result$datetime))
@@ -167,25 +146,9 @@ observeEvent(TRUE,{
           footer = actionButton("restart_button", "Try Again?")
         )
       )
-    
-      # Restarts app if at the end of the time series if the user clicks the restart button
-      observeEvent(input$restart_button,{
-      restart_app()
-    })
-    }
-  })
-  
-  observeEvent(projection(),{
-    result <- projection()
-    
-    print(paste(
-    "MODAL:",
-    "submitted step =", max(submitted()$time_step),
-    "projection final storage =",
-    tail(result$storage, 1)
-  ))
-    # Checks if Powell hits minimum power pool
-    if (any(result$elevation <= 3490, na.rm = TRUE)) {
+  } 
+  # Checks if Powell hits minimum power pool
+  else if (any(result$elevation <= 3490, na.rm = TRUE)) {
       showModal(
         modalDialog(
           title = "Minimum Power Pool!",
@@ -230,9 +193,15 @@ observeEvent(TRUE,{
         modalDialog(title = title, description)        
       )
     }
+      
+      # Restarts app if the user clicks the restart button
+      observeEvent(input$restart_button,{
+      restart_app()
+    })
   })
-    
-  #  Shows Pop up message if a warning modal came up and was closed
+  
+  
+  # Shows Pop up message if a warning modal came up and was closed
     observeEvent(input$next_modal, {
       removeModal() #Removes warning modals
       
@@ -266,6 +235,7 @@ observeEvent(TRUE,{
     key_elev_df <- data.frame(elevation = c(3490, 3500), label = c("Top of Penstocks: 3490 ft.","Final EIS Critical Elevation: 3500 ft"))
     output$projection_plot <- renderPlot({
       req(length(submitted()$time_step) > 1)
+      req(current_date() == max(projection()$datetime))
       fplotprojection(projection(), key_elev_df)
       })
       
@@ -273,6 +243,7 @@ observeEvent(TRUE,{
     output$current_state <- renderUI({
       #Pulls reactive projection to static values
       req(length(submitted()$time_step) > 1)
+      req(current_date() == max(projection()$datetime))
       current_proj <- projection()
        print(paste(
     "RENDERING STATE:",
