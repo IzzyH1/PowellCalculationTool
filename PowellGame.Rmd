@@ -10,7 +10,8 @@ resource_files:
 ---
 ```{r setup, echo=FALSE, message = FALSE, include = FALSE}
 knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)
-source("HelperFunctions/ProjectPowell.R")
+
+source("HelperFunctions/PowellGameMassBalance.R")
 #rsconnect::showLogs()
 ```
 
@@ -58,12 +59,13 @@ projection <- reactive({
     "PROJECTING:",
     "step =", max(choices$time_step),
     "release =", paste(choices$release, collapse = ","),
-    "add_flow =", paste(choices$add_flow, collapse = ",")
+    "add_flow =", paste(choices$add_flow, collapse = ","),
+    "time_lengths =", paste(choices$time_step, collapse = ",")
   ))
       
     time_idx <- max(choices$time_step) + 1
- 
-    result<- ProjectPowell(
+
+    result<- fPowellGameDataWrangle(
         Inflow = inflow,
         Inflow_Time = sum(time_step_lengths),
         Release = choices$release,
@@ -80,7 +82,7 @@ projection <- reactive({
           modalDialog(
             title = "Empty!",
             "Lake Powell is empty! It's Active Storage is zero!",
-            easyClose = TRUE,
+            easyClose = FALSE,
             footer = actionButton("restart_button","Try Again")
             )
         )
@@ -132,7 +134,7 @@ projection <- reactive({
   "\n"
 ))
     # Shows end of game summary if at the end of the time horizon
-    if (max(submitted()$time_step) == length(time_step_lengths)){
+    if (max(submitted()$time_step) == length(time_step_lengths) - 1){
   
       current_storage <- result$storage[[length(result$storage)]] / 1000000
       current_elevation <- result$elevation[[length(result$elevation)]]
@@ -143,7 +145,7 @@ projection <- reactive({
           title = "Congratulations!",
           "You've reached the end of the game! The state of Lake Powell at the end of the reservoir is: ",
           easyClose = FALSE,
-          footer = actionButton("restart_button", "Try Again?")
+          footer = actionButton("restart_button", "Try Again")
         )
       )
   } 
@@ -154,7 +156,7 @@ projection <- reactive({
           title = "Minimum Power Pool!",
           "Lake Powell hit minimum power pool! The reservoir's elevation was too low to generate power!",
           easyClose = FALSE,
-          footer = actionButton("next_modal", "Continue")
+          footer = actionButton("restart_button", "Try Again")
         )
       )
     }
@@ -185,7 +187,7 @@ projection <- reactive({
              "<br/>The Current Storage of Lake Powell is: ", round(current_storage, digits = 1), " MAF",
              "<br/>The Current Elevation of Lake Powell is: ", current_elevation, " ft.",
              
-             "<br/><br/> Make operating decisions for the next ", time_step_lengths[max(submitted()$time_step)], 
+             "<br/><br/> Make operating decisions for the next ", time_step_lengths[max(submitted()$time_step) + 1], 
              " months."
              )
         )
@@ -220,7 +222,7 @@ projection <- reactive({
              "<br/>The Current Storage of Lake Powell is: ", round(current_storage, digits = 1), " MAF",
              "<br/>The Current Elevation of Lake Powell is: ", current_elevation, " ft.",
              
-             "<br/><br/> Make operating decisions for the next ", time_step_lengths[time_step_idx], 
+             "<br/><br/> Make operating decisions for the next ", time_step_lengths[time_step_idx + 1], 
              " months."
              )
         )
@@ -271,10 +273,11 @@ projection <- reactive({
       current_proj <- projection()
       
       # Calculates year to date values and filters to most recent
-      annual_releases <- fAnnualValues(current_proj, "outflow", hydrodata)
+      current_proj_filtered <- filter(current_proj, label == "With Additional Release")
+      annual_releases <- fAnnualValues(current_proj_filtered, "outflow", hydrodata)
       ytd_release <- annual_releases$'Release volume (MAF)'[[length(annual_releases$water_year)]]
       
-      annual_inflow <-fAnnualValues(current_proj, "inflow", hydrodata)
+      annual_inflow <-fAnnualValues(current_proj_filtered, "inflow", hydrodata)
       ytd_inflow <- annual_inflow$'Inflow Volume (MAF)'[[length(annual_releases$water_year)]]
       
       # HTML output
@@ -288,9 +291,8 @@ projection <- reactive({
 
 # Restart App logic
 restart_app <- function() {
-  updateNumericInput(session, "release", value = 0)
-  updateNumericInput(session, "add_flow", value = 0)
-  updateSelectInput(session, "time_step", selected = 1)
+  updateNumericInput(session, "release", value = "")
+  updateNumericInput(session, "add_flow", value = "")
   submitted(data.frame(release = 0, add_flow = 0, time_step = 0))
   
   inflow <- sample(possible_inflows, 1)
@@ -319,7 +321,7 @@ ui <- fluidPage(
   sidebarLayout(
     
     sidebarPanel(
-      textInput("release", "Release Rate (MAF/yr): "),
+      textInput("release", "Release Volume (MAF): "),
       #uiOutput("total_release"),
       textInput("add_flow", "Additional Flow (MAF): "),
       actionButton("next_step", "Next"),
