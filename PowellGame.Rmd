@@ -126,7 +126,7 @@ projection <- reactive({
   
   # Modal logic
   observeEvent(projection(),{
-    req(length(submitted()$time_step) > 1)
+    req(length(submitted()$time_step) > 0)
     result <- projection() 
     print(paste(
   "NEXT_STEP SECOND OBSERVER:",
@@ -195,11 +195,6 @@ projection <- reactive({
         modalDialog(title = title, description)        
       )
     }
-      
-      # Restarts app if the user clicks the restart button
-      observeEvent(input$restart_button,{
-      restart_app()
-    })
   })
   
   
@@ -231,7 +226,11 @@ projection <- reactive({
         modalDialog(title = title, description)        
       )
     })  
-      
+
+# Restarts app if the user clicks the restart button
+observeEvent(input$restart_button,{
+  restart_app()
+  })      
 
 #Plots Projection
     key_elev_df <- data.frame(elevation = c(3490, 3500), label = c("Top of Penstocks: 3490 ft.","Final EIS Critical Elevation: 3500 ft"))
@@ -322,7 +321,6 @@ ui <- fluidPage(
     
     sidebarPanel(
       textInput("release", "Release Volume (MAF): "),
-      #uiOutput("total_release"),
       textInput("add_flow", "Additional Flow (MAF): "),
       actionButton("next_step", "Next"),
       uiOutput("ytd")
