@@ -1,11 +1,11 @@
 ---
-title: "PowellGame"
+title: "Can You Save Lake Powell?"
 author: "Isabel Hinton"
-date: "2026-09-15"
+date: "2026-10-14"
 output: html_document
 runtime: shiny
 resource_files:
-- www/DurationFigure.png
+- www/LowestInflowFigure.png
 - "www/clipboard-image-2026-09-04.png"
 ---
 ```{r setup, echo=FALSE, message = FALSE, include = FALSE}
@@ -43,7 +43,9 @@ start_description <-
     )
 observeEvent(TRUE,{  
   showModal(
-    modalDialog(title = "Welcome!", start_description)
+    modalDialog(title = "Welcome!", 
+                uiOutput("instructions_modal"),
+                start_description)
   )
 }, once = TRUE)
 
@@ -140,10 +142,32 @@ projection <- reactive({
       current_elevation <- result$elevation[[length(result$elevation)]]
       current_date(max(result$datetime))
       
+      # Calculates year to date values and filters to most recent
+      result_filtered <- filter(result, label == "With Additional Release")
+      annual_releases <- fAnnualValues(result_filtered, "outflow", hydrodata)
+      ytd_release <- annual_releases$'Release volume (MAF)'[[length(annual_releases$water_year)]]
+      
+      annual_inflow <-fAnnualValues(result_filtered, "inflow", hydrodata)
+      ytd_inflow <- annual_inflow$'Inflow Volume (MAF)'[[length(annual_releases$water_year)]]
+      
+       end_description<-
+        HTML(
+          paste0("Congratulations! You've reached the end of the water year and the game! <br/>",
+            "The Current Date is: ", format(current_date(), "%B %d"),
+             "<br/>The storage of Lake Powell at the end of the water year is: ", round(current_storage, digits = 1), " MAF",
+             "<br/>The elevation of Lake Powell at the end of the water year is: ", current_elevation, " ft.",
+             "<br/><br/>The total water released from Lake Powell this water year was: ",
+            ytd_release, " MAF",
+            "<br/>The total inflow to Lake Powell this water year was: ",
+            round(ytd_inflow, digits = 2), " MAF"
+             )
+        )
+       
       showModal(
         modalDialog(
-          title = "Congratulations!",
-          "You've reached the end of the game! The state of Lake Powell at the end of the reservoir is: ",
+          title = "Congratulations!", 
+          end_description,
+          plotOutput("projection_plot"),
           easyClose = FALSE,
           footer = actionButton("restart_button", "Try Again")
         )
@@ -183,11 +207,11 @@ projection <- reactive({
       
       description<-
         HTML(
-          paste0("The Current Date is: ", current_date(),
+          paste0("The Current Date is: ", format(current_date(), "%B %d"),
              "<br/>The Current Storage of Lake Powell is: ", round(current_storage, digits = 1), " MAF",
              "<br/>The Current Elevation of Lake Powell is: ", current_elevation, " ft.",
              
-             "<br/><br/> Make operating decisions for the next ", time_step_lengths[max(submitted()$time_step) + 1], 
+             "<br/><br/> Make operating decisions for the next ", time_step_lengths[max(submitted()$time_step + 2)], # +2 because of 0 time_step_length and we're trying to look at next time_step
              " months."
              )
         )
@@ -213,11 +237,11 @@ projection <- reactive({
       
       description<-
         HTML(
-          paste0("The Current Date is: ", current_date(),
+          paste0("The Current Date is: ", format(current_date(), "%B %d"),
              "<br/>The Current Storage of Lake Powell is: ", round(current_storage, digits = 1), " MAF",
              "<br/>The Current Elevation of Lake Powell is: ", current_elevation, " ft.",
              
-             "<br/><br/> Make operating decisions for the next ", time_step_lengths[time_step_idx + 1], 
+             "<br/><br/> Make operating decisions for the next ", time_step_lengths[time_step_idx + 2], 
              " months."
              )
         )
@@ -262,7 +286,7 @@ observeEvent(input$restart_button,{
       HTML(paste0(
           "<b>Current Storage: </b>", round(current_storage, digits = 1) , " MAF<br/>",
           "<b>Current Elevation: </b>", current_elevation, " ft<br/>",
-          "<b>Current Date: </b>", projection_date
+          "<b>Current Date: </b>", format(projection_date, "%B %d")
           ))
     })
     
@@ -306,6 +330,28 @@ restart_app <- function() {
 }, once = TRUE)
 }
 
+# Can't have the same output in multiple places, so have to define two separate outputs
+instructions_content <- function(){
+HTML(
+  "<h2> Instructions: </h2>
+  <br/> 1. Use the given information about Lake Powell's current storage, current elevation, the inflow forecast figure displayed below, and your best judgement to make Lake Powell operating decisions for the next operational period. (For more information about historical Lake Powell release volumes and additional flows from Upper Basin reservoirs, see the context section below the input boxes)
+  <br/> 2. Input the following into their respective boxes: The volume of water you have decided to release from Lake Powell over the course of the operational period, and the volume of additional water you have decided to drain from upstream reservoirs.
+  <br/> 3. Click Next to lock in your decisions
+  <br/> 4. The game simulation will jump to the end of the operational period. A pop-up message will appear telling you the current date, storage, and elevation of Lake Powell based on your decisions. It will also tell you the length of the next operational period.
+  <br/> 5. Repeat the previous steps for the following operational periods until the end of the game. The game will end under three conditions:
+  <br/>   Lake Powell reaches deadpool (no more water is able to be released throught the Glen Canyon Dam) at any point.
+  <br/>   Lake Powell reaches minimum power pool (power is no longer able to be generated throught the Glen Canyon Dam) at any point.
+  <br/>   You successfully reach the end of the water year (October of the next year)
+  <br/> 6. If you reach a game over condition at any point, you can click the Try Again Button to restart the game with a new inflow scenario.
+  <br/> 7. Good Luck!")
+}
+
+output$instructions_modal <- renderUI({instructions_content()})
+output$instructions_main <- renderUI({instructions_content()})
+  
+output$figure_title <- renderUI({HTML("<h2>Inflow Scenario Agreement: </h2>")})
+
+output$figure_description <- renderText("This figure shows agreement for 22 different generation methods of ensembles of plausible natural flow hydrology at Lee Ferry in the Colorado River Basin. Natural flow being the hypothetical flow in the system without any consumptive use or reservoir operations. Each bar contains the number of ensembles who’s lowest single year’s flow reaches that low or lower. The inflow scenario used in this game is one of these lowest single year flows. All 22 ensembles agree the Lee Ferry Natural Flow can be as low as 5-6 MAF which is consistent with the 2 lowest years in the historical record( 5.52 MAF in 1977 and 5.93 MAF in 2002). However, half of the ensembles agree the Colorado could see a flow even lower (between 4-5 MAF), and 6 agree that the annual flow could reach as low as between 3-4 MAF.")
 
 
 
@@ -315,7 +361,11 @@ restart_app <- function() {
 
 ```{r ui, include=FALSE}
 ui <- fluidPage(
-  img(src = "images/DurationFigure.png", height = "250px"),
+  uiOutput("instructions_main"),
+  
+  uiOutput("figure_title"),
+  img(src = "images/LowestInflowFigure.png", height = "300px"),
+  textOutput("figure_description"),
   
   sidebarLayout(
     
@@ -330,7 +380,11 @@ ui <- fluidPage(
       uiOutput("current_state"),
       plotOutput("projection_plot")
     )  
-  )
+  ),
+
+  h3("Context: "),
+  h3("Assumptions and Data Sources: "),
+  h3("Contact Information: ")
 )
 ```
 
