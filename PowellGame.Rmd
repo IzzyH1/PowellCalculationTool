@@ -1,5 +1,5 @@
 ---
-title: "Can You Save Lake Powell?"
+title: "Can You Keep Lake Powell Safe?"
 author: "Isabel Hinton"
 date: "2026-10-14"
 output: html_document
@@ -37,6 +37,7 @@ start_description <-
               paste0("The Current Date is: ", format(start_date, "%B %d"),
              "<br/>The Current Storage of Lake Powell is: ", current_storage," MAF",
              "<br/>The Current Elevation of Lake Powell is: ", current_elevation," ft.",
+             "<br/>The Current Storage of Lake Powell above the protection elevation is ", round(current_storage - 4.215805, digits = 2), " MAF",
              
              "<br/><br/> Make operating decisions for the next 3 months."
               )
@@ -57,14 +58,7 @@ data.frame(release = 0, add_flow = 0, time_step = 0)
 projection <- reactive({
   req(submitted()$time_step > 0)
   choices <- submitted()
-  print(paste(
-    "PROJECTING:",
-    "step =", max(choices$time_step),
-    "release =", paste(choices$release, collapse = ","),
-    "add_flow =", paste(choices$add_flow, collapse = ","),
-    "time_lengths =", paste(choices$time_step, collapse = ",")
-  ))
-      
+  
     time_idx <- max(choices$time_step) + 1
 
     result<- fPowellGameDataWrangle(
@@ -77,6 +71,7 @@ projection <- reactive({
         Storage_Data = hydrodata,
         start_date = start_date
       )
+    
     
       # Checks if Powell is empty
       if (identical(result, "crashed")) {
@@ -156,6 +151,7 @@ projection <- reactive({
             "The Current Date is: ", format(current_date(), "%B %d"),
              "<br/>The storage of Lake Powell at the end of the water year is: ", round(current_storage, digits = 1), " MAF",
              "<br/>The elevation of Lake Powell at the end of the water year is: ", current_elevation, " ft.",
+            "<br/>The Current Storage of Lake Powell above the protection elevation is ", round(current_storage - 4.215805, digits = 2), " MAF",
              "<br/><br/>The total water released from Lake Powell this water year was: ",
             ytd_release, " MAF",
             "<br/>The total inflow to Lake Powell this water year was: ",
@@ -210,7 +206,7 @@ projection <- reactive({
           paste0("The Current Date is: ", format(current_date(), "%B %d"),
              "<br/>The Current Storage of Lake Powell is: ", round(current_storage, digits = 1), " MAF",
              "<br/>The Current Elevation of Lake Powell is: ", current_elevation, " ft.",
-             
+             "<br/>The Current Storage of Lake Powell above the protection elevation is ", round(current_storage - 4.215805, digits = 2), " MAF",
              "<br/><br/> Make operating decisions for the next ", time_step_lengths[max(submitted()$time_step + 2)], # +2 because of 0 time_step_length and we're trying to look at next time_step
              " months."
              )
@@ -240,6 +236,7 @@ projection <- reactive({
           paste0("The Current Date is: ", format(current_date(), "%B %d"),
              "<br/>The Current Storage of Lake Powell is: ", round(current_storage, digits = 1), " MAF",
              "<br/>The Current Elevation of Lake Powell is: ", current_elevation, " ft.",
+             "<br/>The Current Storage of Lake Powell above the protection elevation is ", round(current_storage - 4.215805, digits = 2), " MAF",
              
              "<br/><br/> Make operating decisions for the next ", time_step_lengths[time_step_idx + 2], 
              " months."
@@ -257,10 +254,11 @@ observeEvent(input$restart_button,{
   })      
 
 #Plots Projection
-    key_elev_df <- data.frame(elevation = c(3490, 3500), label = c("Top of Penstocks: 3490 ft.","Final EIS Critical Elevation: 3500 ft"))
+    key_elev_df <- data.frame(elevation = c(3490, 3500), label = c("Minimum Power Pool: 3.7 MAF","Final EIS Protection Elevation: 4.2 MAF"))
     output$projection_plot <- renderPlot({
       req(length(submitted()$time_step) > 1)
       req(current_date() == max(projection()$datetime))
+      
       fplotprojection(projection(), key_elev_df)
       })
       

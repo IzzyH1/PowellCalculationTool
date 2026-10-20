@@ -16,9 +16,6 @@ hydrodata <- fReadReclamationHydroData(FALSE)
 #Inputs: Inflow (MAF/yr), Release (MAF/yr), Additional Release(MAF/yr), Additional Release Duration (months), Duration (Months), Storage_Data (dataframe)
 # Outputs: dataframe (storage_proj, elevation_proj, datetime)
 # Default Values: Inflow = CRMMS, Release = 6 MAF/yr, Additional Relese = 1 MAF, AR Duration = 12 months, Duration = 36 months
-
-
-
 ProjectPowell <- function(Inflow, Inflow_Time, Release, Release_Time, Add_Release, Add_Time, Storage_Data = hydrodata, start_date)
 {
 
@@ -250,6 +247,10 @@ fplotprojection<- function(projection, elevation_input = NULL){
   ggplot(projection,
        aes(x = datetime, y = elevation, color = label)) +
     geom_line(linewidth = 1.2) +
+    
+    scale_x_date(date_labels = "%b", #Makes x axis label only months
+                 date_breaks = "1 month",
+                 limits = as.Date(c("2026-10-01", "2027-10-01"))) + 
   
     scale_color_manual(name = "Operation Strategy:", 
       values = color_values
@@ -333,6 +334,7 @@ fAnnualValues <- function(df, parameter, Storage_Data){
 #projection <- ProjectPowell(Inflow = c(4.2,4.5,5), Inflow_Time = c(1,12,12), Release = c(5,6), Release_Time = c(12, 12), Add_Release = 1, Add_Time = 12, Storage_Data = hydrodata, start_date = Sys.Date())
 #elevation_input <- data.frame(elevation = 3500, label = "3500 label")
 #annual_outflow <- fAnnualValues(projection, "outflow", hydrodata)
+#fplotprojection(projection, key_elev_df)
 
 #CRMMS_projection <- fAutoReadCRMMS24MS("Lake Powell", "Pool Elevation")
 #CRMMS_filtered <- data.frame(datetime = CRMMS_projection$date, elevation = CRMMS_projection$`24MS MIN PROB`, label = "24MS MIN PROB", storage = NA, inflow = NA, outflow = NA)

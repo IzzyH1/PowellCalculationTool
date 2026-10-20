@@ -11,10 +11,9 @@ source("HelperFunctions/ProjectPowell.R")
 hydrodata <- fReadReclamationHydroData(FALSE)
 
 
-
 fPowellGameDataWrangle <- function(Inflow, Inflow_Time, Release, Release_Time, Add_Release, Add_Time, Storage_Data = hydrodata, start_date)
 {
-  
+ 
   # Defines time_grid
   duration <- min(sum(Inflow_Time), sum(Release_Time), sum(Add_Time))
   time_grid<- seq.Date(from = start_date, by = "month", length.out = duration)
@@ -53,8 +52,8 @@ fPowellGameDataWrangle <- function(Inflow, Inflow_Time, Release, Release_Time, A
       )
     }
   }
+ 
   
-
   # Defines Release
   stage_date_ranges <- fCalculateDateRangeGame(start_date, Release_Time)
   release_prop <- fMonthlyProportionGame("Release volume", "Lake Powell", hydrodata, stage_date_ranges)
@@ -163,14 +162,18 @@ fMonthlyProportionGame <- function(parameter, reservoir, hydrodata, date_ranges)
   for (i in seq_along(date_ranges$start_date)){
     range_values <- filter(monthly, as.Date(Date) >= date_ranges$start_date[i] & as.Date(Date) < date_ranges$end_date[i])
     range_total <- sum(range_values$MonthlyValue)
-    monthly_prop <- data.frame(datetime = as.Date(range_values$Date), prop = range_values$MonthlyValue / range_total) 
+    monthly_prop <- data.frame(datetime = as.Date(range_values$Date), prop = range_values$MonthlyValue / range_total)
+    
     
     # Changes date range back to 2026 water year
     monthly_prop$datetime <- monthly_prop$datetime %m+% years(6)
     results[[i]] <- monthly_prop #Stores each iteration along loop
   }
-
-  results <- dplyr::bind_rows(results, .id = "stage_number")
+  results <-dplyr::bind_rows(results, .id = "stage_number")
+  
+  #results_init <- dplyr::bind_rows(results, .id = "stage_number")
+  #blank_date<- data.frame(stage_number = max(results_init$stage_number), datetime = max(results_init$datetime) %m+% months(1), prop = 0 )
+  #results<- rbind(results_init, blank_date)
   
   return(results)
 }
