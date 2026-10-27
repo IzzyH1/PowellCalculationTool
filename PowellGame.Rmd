@@ -125,11 +125,7 @@ projection <- reactive({
   observeEvent(projection(),{
     req(length(submitted()$time_step) > 0)
     result <- projection() 
-    print(paste(
-  "NEXT_STEP SECOND OBSERVER:",
-  max(submitted()$time_step),
-  "\n"
-))
+    
     # Shows end of game summary if at the end of the time horizon
     if (max(submitted()$time_step) == length(time_step_lengths) - 1){
   
@@ -139,8 +135,8 @@ projection <- reactive({
       
       # Calculates year to date values and filters to most recent
       result_filtered <- filter(result, label == "With Additional Release")
-      ytd_release <- sum(result_filtered$outflow)
-      ytd_inflow <- sum(result_filtered$inflow)
+      ytd_release <- sum(submitted()$release)
+      ytd_inflow <- sum(result_filtered$inflow) / 1000000
       
        end_description<-
         HTML(
@@ -150,7 +146,7 @@ projection <- reactive({
              "<br/>The elevation of Lake Powell at the end of the water year is: ", current_elevation, " ft.",
             "<br/>The Current Storage of Lake Powell above the protection elevation is ", round(current_storage - 4.215805, digits = 2), " MAF",
              "<br/><br/>The total water released from Lake Powell this water year was: ",
-            ytd_release, " MAF",
+            round(ytd_release, digits = 2), " MAF",
             "<br/>The total inflow to Lake Powell this water year was: ",
             round(ytd_inflow, digits = 2), " MAF"
              )
@@ -265,12 +261,6 @@ observeEvent(input$restart_button,{
       req(length(submitted()$time_step) > 1)
       req(current_date() == max(projection()$datetime))
       current_proj <- projection()
-       print(paste(
-    "RENDERING STATE:",
-    "submitted step =", max(submitted()$time_step),
-    "projection final storage =",
-    tail(current_proj$storage, 1)
-  ))
       
       current_storage <- current_proj$storage[[length(current_proj$storage)]] / 1000000
       current_elevation <- current_proj$elevation[[length(current_proj$elevation)]]
@@ -292,7 +282,7 @@ observeEvent(input$restart_button,{
       
       # Calculates year to date values and filters to most recent
       current_proj_filtered <- filter(current_proj, label == "With Additional Release")
-      ytd_release <- sum(current_proj_filtered$outflow) / 1000000
+      ytd_release <- sum(submitted()$release)
       ytd_inflow <- sum(current_proj_filtered$inflow) / 1000000
       
       # HTML output
@@ -303,16 +293,39 @@ observeEvent(input$restart_button,{
     })
   
 # Past decisions and inflow table
-    past_inputs <-reactive({data.frame(
-      date_ranges = fCalculateDateRangeGame(start_date,time_step_lengths[-1]), 
-      release = submitted()$release[-1],
-      additional_flow = submitted()$add_flow[-1]
+  past_inputs <-reactive({
+    all_date_ranges <-
+    fCalculateDateRangeGame(start_date, time_step_lengths[-1])
+    
+    choices <- submitted()
+    
+    n <- nrow(all_date_ranges)
+    #Blank release and add flow columns
+    release <- rep("", n)
+    add_flow <- rep("", n)
+    inflow <- rep("", n)
+    
+    if (length(choices$release) > 1){
+      chosen_releases <- choices$release[-1]
+      release[seq_len(min(length(chosen_releases), n))] <-
+      chosen_releases[seq_len(min(length(chosen_releases), n))]
+      
+      chosen_add_flows <- choices$add_flow[-1]
+      add_flow[seq_len(min(length(chosen_add_flows), n))] <-
+      chosen_add_flows[seq_len(min(length(chosen_add_flows), n))]
+    }
+    
+    
+    data.frame(
+      'Operational Period Start' = format(all_date_ranges$start_date, "%B %d"),
+      'Operational Period End' = format(all_date_ranges$end_date, "%B %d"),
+      'Release (MAF)' = release,
+      'Additional Flow (MAF)' = add_flow
     )
     })
     
     
     output$past_decisions <- renderTable({
-      req(length(submitted()$time_step) >1)
       past_inputs()})
 
 
@@ -326,6 +339,7 @@ restart_app <- function() {
   inflow <- sample(possible_inflows, 1)
   
   removeModal()
+  removeUI("projection_plot")
   
   #Welcome message
   observeEvent(TRUE,{  

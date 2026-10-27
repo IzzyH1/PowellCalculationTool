@@ -145,12 +145,10 @@ fPowellGameDataWrangle <- function(Inflow, Inflow_Time, Release, Release_Time, A
 # Outpus: dataframe with columns: start_date (Date) and end_date (Date)
 fCalculateDateRangeGame <- function(start_date, stage_durations){
   end_date <- as.Date(rep(NA, length(stage_durations)))
-  stage_number <- numeric(length(stage_durations))
   
   for (i in seq_along(stage_durations)){
     end_date[i] <- start_date[i] %m+% months(stage_durations[i])
     start_date[i + 1] <- end_date[i]
-    stage_number[i] <- i
   }
   
   #Gets rid of last extra start date
