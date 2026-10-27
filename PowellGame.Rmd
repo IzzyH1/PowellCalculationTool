@@ -295,11 +295,8 @@ observeEvent(input$restart_button,{
       
       # Calculates year to date values and filters to most recent
       current_proj_filtered <- filter(current_proj, label == "With Additional Release")
-      annual_releases <- fAnnualValues(current_proj_filtered, "outflow", hydrodata)
-      ytd_release <- annual_releases$'Release volume (MAF)'[[length(annual_releases$water_year)]]
-      
-      annual_inflow <-fAnnualValues(current_proj_filtered, "inflow", hydrodata)
-      ytd_inflow <- annual_inflow$'Inflow Volume (MAF)'[[length(annual_releases$water_year)]]
+      ytd_release <- sum(current_proj_filtered$outflow) / 1000000
+      ytd_inflow <- sum(current_proj_filtered$inflow) / 1000000
       
       # HTML output
       HTML(paste0(
@@ -307,6 +304,19 @@ observeEvent(input$restart_button,{
           <b> Total Inflow to Powell to Date: </b>", round(ytd_inflow, digits = 1), "MAF"
           ))
     })
+  
+# Past decisions and inflow table
+    past_inputs <-reactive({data.frame(
+      date_ranges = fCalculateDateRangeGame(start_date,time_step_lengths[-1]), 
+      release = submitted()$release[-1],
+      additional_flow = submitted()$add_flow[-1]
+    )
+    })
+    
+    
+    output$past_decisions <- renderTable({
+      req(length(submitted()$time_step) >1)
+      past_inputs()})
 
 
 
@@ -376,7 +386,8 @@ ui <- fluidPage(
     
     mainPanel(
       uiOutput("current_state"),
-      plotOutput("projection_plot")
+      plotOutput("projection_plot"),
+      tableOutput("past_decisions")
     )  
   ),
 

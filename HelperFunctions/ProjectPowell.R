@@ -170,7 +170,8 @@ fCalculateDateRange <- function(stage_durations, parameter){
   return(text)
 }
 
-
+#Storage_Data <- hydrodata
+#time_grid <- as.Date(c("2026-10-01", "2026-11-01", "2026-12-01", "2027-01-01"))
 
 # Storage Projection Function:
 # Inputs: Inflow, Outflow (Vectors)
@@ -181,9 +182,10 @@ fCalculateDateRange <- function(stage_durations, parameter){
 # Evaporation per timestep = Evaporation per year/365*days in time step
 project_storage <- function(inflow, outflow, Storage_Data, time_grid)
 {
+  start_date <- time_grid[1]
   storage_data <- filter(Storage_Data$dfResDaily, FieldName == "Storage", ResName == "Lake Powell")
   storage <- numeric(length(time_grid))
-  storage[1] <- storage_data$Value[which.max(as.Date(storage_data$DateValue))]
+  storage[1] <- storage_data$Value[storage_data$DateValue == start_date]
   
   # Set Evaporation
   # Evaporation is in acre feet per year
@@ -228,7 +230,7 @@ project_storage <- function(inflow, outflow, Storage_Data, time_grid)
 
 fplotprojection<- function(projection, elevation_input = NULL){
 #Sets key elevations for graph
-#bathy$dfPowellBathymetry$`Total Storage (acre-feet)`[which.min(abs(3525 - bathy$dfPowellBathymetry$`ELEVATION (feet)`))]
+#bathy$dfPowellBathymetry$`Active Storage (acre-feet)`[which.min(abs(3490 - bathy$dfPowellBathymetry$`ELEVATION (feet)`))]
   elevation_ticks <- data.frame(elevation = c(3446, 3473, 3496,3515, 3533, 3549), label = c("2", "3","4","5", "6", "7"))
   
   key_elevations <- rbind(elevation_ticks, elevation_input)
