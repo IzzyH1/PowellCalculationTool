@@ -202,8 +202,8 @@ project_storage <- function(inflow, outflow, Storage_Data, time_grid)
     
     storage[i] <-
       storage[i - 1] +
-      inflow[i] -
-      outflow[i] -
+      inflow[i - 1] -
+      outflow[i - 1] -
       evap_i
     
   }

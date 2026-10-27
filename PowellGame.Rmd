@@ -139,11 +139,8 @@ projection <- reactive({
       
       # Calculates year to date values and filters to most recent
       result_filtered <- filter(result, label == "With Additional Release")
-      annual_releases <- fAnnualValues(result_filtered, "outflow", hydrodata)
-      ytd_release <- annual_releases$'Release volume (MAF)'[[length(annual_releases$water_year)]]
-      
-      annual_inflow <-fAnnualValues(result_filtered, "inflow", hydrodata)
-      ytd_inflow <- annual_inflow$'Inflow Volume (MAF)'[[length(annual_releases$water_year)]]
+      ytd_release <- sum(result_filtered$outflow)
+      ytd_inflow <- sum(result_filtered$inflow)
       
        end_description<-
         HTML(
