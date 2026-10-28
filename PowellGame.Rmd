@@ -31,28 +31,13 @@ current_storage <- 5.1
 current_elevation <- 3517
 current_date <- reactiveVal(start_date)
 
-# Initial message
-start_description <- 
-  HTML(
-              paste0("The Current Date is: ", format(start_date, "%B %d"),
-             "<br/>The Current Storage of Lake Powell is: ", current_storage," MAF",
-             "<br/>The Current Elevation of Lake Powell is: ", current_elevation," ft.",
-             "<br/>The Current Storage of Lake Powell above the protection elevation is ", round(current_storage - 4.215805, digits = 2), " MAF",
-             
-             "<br/><br/> Make operating decisions for the next 3 months."
-              )
-    )
-observeEvent(TRUE,{  
-  showModal(
-    modalDialog(title = "Welcome!", 
-                uiOutput("instructions_modal"),
-                start_description)
-  )
-}, once = TRUE)
-
 submitted <- reactiveVal(
 data.frame(release = 0, add_flow = 0, time_step = 0)
   )
+
+observeEvent(input$dismiss,{
+  removeModal()
+})
 
 # Defines projection as a value reactive to submitted
 projection <- reactive({
@@ -93,13 +78,6 @@ projection <- reactive({
 ##### When Next button is pushed
   #Stores input values after next page button is pushed
   observeEvent(input$next_step, {
-     print(paste(
-    "\nNEXT STEP\n",
-    "submitted time_step:",
-    max(submitted()$time_step),
-    "\n"
-  ))
-    
     current <- submitted()
     
     new_choice <- data.frame(
@@ -205,7 +183,7 @@ projection <- reactive({
              )
         )
       showModal(
-        modalDialog(title = title, description)        
+        modalDialog(title = title, description, footer = actionButton("dismiss", "Continue"))        
       )
     }
   })
@@ -237,14 +215,23 @@ projection <- reactive({
         )
       
       showModal(
-        modalDialog(title = title, description)        
+        modalDialog(title = title, description, footer = actionButton("next_modal", "Continue"))        
       )
     })  
 
-# Restarts app if the user clicks the restart button
+# Restarts app if the user clicks the restart or start button
 observeEvent(input$restart_button,{
   restart_app()
-  })      
+  }, ignoreInit = TRUE) 
+
+observeEvent(input$start_game_top,{
+  restart_app()
+  }, ignoreInit = TRUE) 
+
+observeEvent(input$start_game_bottom,{
+  restart_app()
+}, ignoreInit = TRUE)
+
 
 #Plots Projection
     key_elev_df <- data.frame(elevation = c(3490, 3500), label = c("Minimum Power Pool: 3.7 MAF","Final EIS Protection Elevation: 4.2 MAF"))
@@ -339,15 +326,26 @@ restart_app <- function() {
   inflow <- sample(possible_inflows, 1)
   
   removeModal()
-  removeUI("projection_plot")
   
   #Welcome message
-  observeEvent(TRUE,{  
   showModal(
-    modalDialog(title = "Welcome!", start_description)
+    modalDialog(title = "Welcome!", start_description, footer = actionButton("dismiss", "Continue"))
   )
-}, once = TRUE)
 }
+
+
+# Initial message
+start_description <- 
+  HTML(
+              paste0("The Current Date is: ", format(start_date, "%B %d"),
+             "<br/>The Current Storage of Lake Powell is: ", current_storage," MAF",
+             "<br/>The Current Elevation of Lake Powell is: ", current_elevation," ft.",
+             "<br/>The Current Storage of Lake Powell above the protection elevation is ", round(current_storage - 4.215805, digits = 2), " MAF",
+             
+             "<br/><br/> Make operating decisions for the next 3 months."
+              )
+    )
+
 
 # Can't have the same output in multiple places, so have to define two separate outputs
 instructions_content <- function(){
@@ -365,7 +363,6 @@ HTML(
   <br/> 7. Good Luck!")
 }
 
-output$instructions_modal <- renderUI({instructions_content()})
 output$instructions_main <- renderUI({instructions_content()})
   
 output$figure_title <- renderUI({HTML("<h2>Inflow Scenario Agreement: </h2>")})
@@ -380,7 +377,9 @@ output$figure_description <- renderText("This figure shows agreement for 22 diff
 
 ```{r ui, include=FALSE}
 ui <- fluidPage(
+  actionButton("start_game_top", "Start Game"),
   uiOutput("instructions_main"),
+  actionButton("start_game_bottom", "Start Game"),
   
   uiOutput("figure_title"),
   img(src = "images/LowestInflowFigure.png", height = "300px"),
