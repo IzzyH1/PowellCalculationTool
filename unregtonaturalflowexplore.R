@@ -30,7 +30,7 @@ df_long <- df %>%
   )
 
 # Plot
-ggplot(df_long, aes(x = WaterYear, y = Value, color = Flow Type)) + 
+ggplot(df_long, aes(x = WaterYear, y = Value, color = FlowType)) + 
     geom_line()+
     labs(x = "Water Year", y = "Flow (MAF)", color = "Flow Type") +
     theme_minimal()

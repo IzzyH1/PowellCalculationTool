@@ -18,12 +18,14 @@ source("HelperFunctions/PowellGameMassBalance.R")
 ```{r server, include=FALSE}
 server<- function(input, output, session){
 
+plot_ready <- reactiveVal(FALSE)
+
 # Time frame set up
 start_date <- as.Date("2026-10-01")
 time_step_lengths <- c(0, 3, 3, 6)
 
 #Inflow scenario set up
-possible_inflows <- c(2.177, 5.142, 5.934)
+possible_inflows <- c(4.839, 5.142, 5.520, 5.934)
 inflow <- sample(possible_inflows, 1)
 
 # Initial state for initial message
@@ -95,6 +97,8 @@ projection <- reactive({
     # Clears Input Boxes
     updateTextInput(session, "release", value = "")
     updateTextInput(session, "add_flow", value = "")
+    
+    plot_ready(TRUE)
   
   })
 
@@ -134,7 +138,7 @@ projection <- reactive({
         modalDialog(
           title = "Congratulations!", 
           end_description,
-          plotOutput("projection_plot"),
+          plotOutput("final_projection_plot"),
           easyClose = FALSE,
           footer = actionButton("restart_button", "Try Again")
         )
@@ -215,7 +219,7 @@ projection <- reactive({
         )
       
       showModal(
-        modalDialog(title = title, description, footer = actionButton("next_modal", "Continue"))        
+        modalDialog(title = title, description, footer = actionButton("dismiss", "Continue"))        
       )
     })  
 
@@ -236,8 +240,16 @@ observeEvent(input$start_game_bottom,{
 #Plots Projection
     key_elev_df <- data.frame(elevation = c(3490, 3500), label = c("Minimum Power Pool: 3.7 MAF","Final EIS Protection Elevation: 4.2 MAF"))
     output$projection_plot <- renderPlot({
-      req(length(submitted()$time_step) > 1)
-      req(current_date() == max(projection()$datetime))
+      req(length(submitted()$time_step > 1))
+      req(plot_ready())
+      
+      fplotprojection(projection(), key_elev_df)
+      })
+    
+   #Creates plot for final modal
+     output$final_projection_plot<- renderPlot({
+      req(length(submitted()$time_step > 1))
+      req(plot_ready())
       
       fplotprojection(projection(), key_elev_df)
       })
@@ -283,6 +295,7 @@ observeEvent(input$start_game_bottom,{
   past_inputs <-reactive({
     all_date_ranges <-
     fCalculateDateRangeGame(start_date, time_step_lengths[-1])
+    all_date_ranges <- mutate(all_date_ranges, period = row_number())
     
     choices <- submitted()
     
@@ -291,6 +304,19 @@ observeEvent(input$start_game_bottom,{
     release <- rep("", n)
     add_flow <- rep("", n)
     inflow <- rep("", n)
+    con_use <- rep("", n)
+   
+  #inflow by period sorting 
+   inflow_known <- projection()
+   inflow_sorted <- inflow_known %>%
+     inner_join(all_date_ranges,
+     by = join_by(datetime >= start_date, datetime < end_date)
+   ) %>%
+  group_by(period, start_date, end_date) %>%
+  summarise(
+    total_inflow = sum(inflow, na.rm = TRUE),
+    .groups="drop"
+  )
     
     if (length(choices$release) > 1){
       chosen_releases <- choices$release[-1]
@@ -300,14 +326,19 @@ observeEvent(input$start_game_bottom,{
       chosen_add_flows <- choices$add_flow[-1]
       add_flow[seq_len(min(length(chosen_add_flows), n))] <-
       chosen_add_flows[seq_len(min(length(chosen_add_flows), n))]
-    }
+      
+      revealed_inflow <- inflow_sorted$total_inflow
+      inflow[seq_len(min(length(revealed_inflow), n))] <-
+      revealed_inflow[seq_len(min(length(revealed_inflow)))]
+      }
     
     
     data.frame(
       'Operational Period Start' = format(all_date_ranges$start_date, "%B %d"),
       'Operational Period End' = format(all_date_ranges$end_date, "%B %d"),
       'Release (MAF)' = release,
-      'Additional Flow (MAF)' = add_flow
+      'Additional Flow (MAF)' = add_flow,
+      'Total Inflow (MAF)' = revealed_inflow
     )
     })
     
@@ -322,7 +353,7 @@ restart_app <- function() {
   updateNumericInput(session, "release", value = "")
   updateNumericInput(session, "add_flow", value = "")
   submitted(data.frame(release = 0, add_flow = 0, time_step = 0))
-  
+  plot_ready(FALSE)
   inflow <- sample(possible_inflows, 1)
   
   removeModal()
@@ -331,6 +362,16 @@ restart_app <- function() {
   showModal(
     modalDialog(title = "Welcome!", start_description, footer = actionButton("dismiss", "Continue"))
   )
+  
+  # Renders Input boxes if the game is running
+  output$input_box<- renderUI({
+    tagList(
+    textInput("release", "Release Volume (MAF): "),
+    textInput("add_flow", "Additional Flow (MAF): "),
+    actionButton("next_step", "Next"),
+    uiOutput("ytd")
+    )
+  })
 }
 
 
@@ -388,10 +429,7 @@ ui <- fluidPage(
   sidebarLayout(
     
     sidebarPanel(
-      textInput("release", "Release Volume (MAF): "),
-      textInput("add_flow", "Additional Flow (MAF): "),
-      actionButton("next_step", "Next"),
-      uiOutput("ytd")
+      uiOutput("input_box")
     ),
     
     mainPanel(
