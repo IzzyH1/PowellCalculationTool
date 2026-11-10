@@ -11,9 +11,8 @@ source("HelperFunctions/ProjectPowell.R")
 hydrodata <- fReadReclamationHydroData(FALSE)
 
 
-fPowellGameDataWrangle <- function(Inflow, Inflow_Time, Release, Release_Time, Add_Release, Add_Time, Storage_Data = hydrodata, start_date)
+fPowellGameDataWrangle <- function(Inflow, Inflow_Time, Release, Release_Time, Add_Release, Add_Time, Consume, Consume_Time, Storage_Data = hydrodata, start_date)
 {
-  
   # Defines time_grid
   duration <- min(sum(Inflow_Time), sum(Release_Time), sum(Add_Time))
   time_grid<- seq.Date(from = start_date, by = "month", length.out = duration + 1)
@@ -41,7 +40,7 @@ fPowellGameDataWrangle <- function(Inflow, Inflow_Time, Release, Release_Time, A
       inflow_i$inflow <- sapply(
         inflow_i$datetime,
         function(d) {
-          stage <- which(d <= stage_end)[1]
+          stage <- which(d < stage_end)[1]
           if(is.na(stage)){
             0
           }
@@ -54,9 +53,7 @@ fPowellGameDataWrangle <- function(Inflow, Inflow_Time, Release, Release_Time, A
   }
   
   
-  print(paste0("The inflow is ", inflow_i$inflow))
 
- 
   # Defines Release
   stage_date_ranges <- fCalculateDateRangeGame(start_date, Release_Time)
   release_prop <- fMonthlyProportionGame("Release volume", "Lake Powell", hydrodata, stage_date_ranges)
@@ -65,8 +62,8 @@ fPowellGameDataWrangle <- function(Inflow, Inflow_Time, Release, Release_Time, A
   release_i$release <- vapply(
     release_i$datetime,
     function(d) {
-      stage <- which(d <= stage_date_ranges$end_date)[1]
-      if(stage == 1){
+      stage <- which(d < stage_date_ranges$end_date)[1]
+      if(stage == 1 | is.na(stage)){
         stage <- 2
       }
       
@@ -82,11 +79,11 @@ fPowellGameDataWrangle <- function(Inflow, Inflow_Time, Release, Release_Time, A
     numeric(1)
   )
   release_i$release[is.na(release_i$release)]<- 0
-  print(paste0("The release is", release_i$release, " Class: ", class(release_i$release))) 
+  
     
     # Defines Additional Release data frame
     # Values can be positive for upstream releases (Flaming Gorge)
-    
+  
     # Defines when additional release rule changes
     #req(Add_Time)
     #req((length(Add_Time) > 0),
@@ -100,7 +97,7 @@ fPowellGameDataWrangle <- function(Inflow, Inflow_Time, Release, Release_Time, A
     add_release_i$add_release <- sapply(
       add_release_i$datetime,
       function(d) {
-        stage <- which(d <= stage_end)[1]
+        stage <- which(d < stage_end)[1]
         if(is.na(stage)){
           return(0)
         }
@@ -108,12 +105,29 @@ fPowellGameDataWrangle <- function(Inflow, Inflow_Time, Release, Release_Time, A
       }
     )
     add_release_i$add_release[is.na(add_release_i$add_release)]<- 0
-    #print(paste0("The additional release is ", add_release_i$add_release, "Class: ", class(add_release_i$add_release)))
+    
+    #Consumptive Use Data Wrangle. Same logic as add_release
+    con_use_i <- data.frame(datetime = time_grid)
+    con_use_i$con_use <-sapply(
+      con_use_i$datetime,
+      function(d) {
+        stage <- which(d < stage_end)[1]
+        if(is.na(stage)){
+          return(0)
+        }
+        Consume[stage]/Consume_Time[stage] * 1000000
+      }
+    )
+    con_use_i$con_use[is.na(con_use_i$con_use)] <- 0
+    print(paste0(con_use_i$con_use))
+    
+    # Subtracts consumptive use from inflow
+    inflow_i$inflow <- inflow_i$inflow - con_use_i$con_use
     
     # Merges inflow and add_release
     inflow_i$with_release <- inflow_i$inflow + add_release_i$add_release
     
-    
+   
     #Projects Storage and merges into single data frame
     no_add_release <- project_storage(inflow_i$inflow, release_i$release, Storage_Data, time_grid)
     print(no_add_release)

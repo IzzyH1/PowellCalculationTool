@@ -24,9 +24,6 @@ plot_ready <- reactiveVal(FALSE)
 start_date <- as.Date("2026-10-01")
 time_step_lengths <- c(0, 3, 3, 6)
 
-#Inflow scenario set up
-possible_inflows <- c(4.839, 5.142, 5.520, 5.934)
-inflow <- sample(possible_inflows, 1)
 
 # Initial state for initial message
 current_storage <- 5.1
@@ -41,13 +38,37 @@ observeEvent(input$dismiss,{
   removeModal()
 })
 
+#Inflow scenario set up
+possible_inflows <- c(4.839, 5.142, 5.520, 5.934)
+inflow <- sample(possible_inflows, 1)
+
+#UB consumptive use set up, 4.47 is upper basin consumptive use in 2024
+# inflow during last time step is maximum consumption, if last inflow is higher than the historical consumption (4.47 MAF), choose historical
+ub_use <- reactiveVal(numeric(length(time_step_lengths)))
+
+last_inflow_proj <- fPowellGameDataWrangle(
+  Inflow = c(0,0,0, inflow),
+  Inflow_Time = time_step_lengths,
+  Release = 0,
+  Release_Time = sum(time_step_lengths),
+  Add_Release = 0,
+  Add_Time = sum(time_step_lengths),
+  Consume = 0,
+  Consume_Time = sum(time_step_lengths),
+  Storage_Data = hydrodata,
+  start_date = start_date 
+)
+last_inflow <- sum(last_inflow_proj$inflow[last_inflow_proj$label == "No Additional Release"]) / 1000000
+
+
 # Defines projection as a value reactive to submitted
 projection <- reactive({
   req(submitted()$time_step > 0)
   choices <- submitted()
   
     time_idx <- max(choices$time_step) + 1
-
+    print(paste0(ub_use()[1:time_idx]))
+    
     result<- fPowellGameDataWrangle(
         Inflow = inflow,
         Inflow_Time = sum(time_step_lengths),
@@ -55,6 +76,8 @@ projection <- reactive({
         Release_Time = time_step_lengths[1:time_idx],
         Add_Release = choices$add_flow,
         Add_Time = time_step_lengths[1:time_idx],
+        Consume = ub_use()[1:time_idx],
+        Consume_Time = time_step_lengths[1:time_idx],
         Storage_Data = hydrodata,
         start_date = start_date
       )
@@ -98,6 +121,19 @@ projection <- reactive({
     updateTextInput(session, "release", value = "")
     updateTextInput(session, "add_flow", value = "")
     
+    # Upper Basin Consumptive Use Logic
+    if (max(submitted()$time_step) == length(time_step_lengths) - 1) {
+    current_ub <- ub_use()
+    
+    if (last_inflow < 4.47) {
+      current_ub[length(current_ub)] <- last_inflow
+    }
+    else {
+      current_ub[length(current_ub)] <- 4.47
+    }
+    ub_use(current_ub)
+  }
+    
     plot_ready(TRUE)
   
   })
@@ -139,6 +175,7 @@ projection <- reactive({
           title = "Congratulations!", 
           end_description,
           plotOutput("final_projection_plot"),
+          tableOutput("past_decisions"),
           easyClose = FALSE,
           footer = actionButton("restart_button", "Try Again")
         )
@@ -307,7 +344,7 @@ observeEvent(input$start_game_bottom,{
     con_use <- rep("", n)
    
   #inflow by period sorting 
-   inflow_known <- projection()
+   inflow_known <- projection()[projection()$label == "No Additional Release",]
    inflow_sorted <- inflow_known %>%
      inner_join(all_date_ranges,
      by = join_by(datetime >= start_date, datetime < end_date)
@@ -331,14 +368,16 @@ observeEvent(input$start_game_bottom,{
       inflow[seq_len(min(length(revealed_inflow), n))] <-
       revealed_inflow[seq_len(min(length(revealed_inflow)))]
       }
-    
+      
+   inflow <- round(as.numeric(inflow) / 1000000, digits = 2)
+   inflow[is.na(inflow)] <- ""
     
     data.frame(
       'Operational Period Start' = format(all_date_ranges$start_date, "%B %d"),
       'Operational Period End' = format(all_date_ranges$end_date, "%B %d"),
       'Release (MAF)' = release,
       'Additional Flow (MAF)' = add_flow,
-      'Total Inflow (MAF)' = revealed_inflow
+      'Total Inflow (MAF)' = inflow
     )
     })
     
