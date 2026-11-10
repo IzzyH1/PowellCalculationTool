@@ -34,31 +34,16 @@ submitted <- reactiveVal(
 data.frame(release = 0, add_flow = 0, time_step = 0)
   )
 
+ub_use <- reactiveVal(numeric(length(time_step_lengths)))
+last_inflow <- reactiveVal(numeric(0))
+
 observeEvent(input$dismiss,{
   removeModal()
 })
 
 #Inflow scenario set up
 possible_inflows <- c(4.839, 5.142, 5.520, 5.934)
-inflow <- sample(possible_inflows, 1)
-
-#UB consumptive use set up, 4.47 is upper basin consumptive use in 2024
-# inflow during last time step is maximum consumption, if last inflow is higher than the historical consumption (4.47 MAF), choose historical
-ub_use <- reactiveVal(numeric(length(time_step_lengths)))
-
-last_inflow_proj <- fPowellGameDataWrangle(
-  Inflow = c(0,0,0, inflow),
-  Inflow_Time = time_step_lengths,
-  Release = 0,
-  Release_Time = sum(time_step_lengths),
-  Add_Release = 0,
-  Add_Time = sum(time_step_lengths),
-  Consume = 0,
-  Consume_Time = sum(time_step_lengths),
-  Storage_Data = hydrodata,
-  start_date = start_date 
-)
-last_inflow <- sum(last_inflow_proj$inflow[last_inflow_proj$label == "No Additional Release"]) / 1000000
+inflow <- reactiveVal(sample(possible_inflows, 1))
 
 
 # Defines projection as a value reactive to submitted
@@ -70,7 +55,7 @@ projection <- reactive({
     print(paste0(ub_use()[1:time_idx]))
     
     result<- fPowellGameDataWrangle(
-        Inflow = inflow,
+        Inflow = inflow(),
         Inflow_Time = sum(time_step_lengths),
         Release = choices$release,
         Release_Time = time_step_lengths[1:time_idx],
@@ -121,17 +106,17 @@ projection <- reactive({
     updateTextInput(session, "release", value = "")
     updateTextInput(session, "add_flow", value = "")
     
-    # Upper Basin Consumptive Use Logic
+    # Upper Basin Consumptive Use Logic in last time step
     if (max(submitted()$time_step) == length(time_step_lengths) - 1) {
-    current_ub <- ub_use()
+      current_ub <- ub_use()
     
-    if (last_inflow < 4.47) {
-      current_ub[length(current_ub)] <- last_inflow
-    }
-    else {
-      current_ub[length(current_ub)] <- 4.47
-    }
-    ub_use(current_ub)
+      if (last_inflow() < 4.47) {   #4.47 is 2024 con use
+        current_ub[length(current_ub)] <- last_inflow()
+      }
+      else {
+        current_ub[length(current_ub)] <- 4.47
+      }
+      ub_use(current_ub)
   }
     
     plot_ready(TRUE)
@@ -151,8 +136,8 @@ projection <- reactive({
       current_elevation <- result$elevation[[length(result$elevation)]]
       current_date(max(result$datetime))
       
-      # Calculates year to date values and filters to most recent
-      result_filtered <- filter(result, label == "With Additional Release")
+      # Calculates year to date values and filters to most recent. Subtract one month because the inflow is accounted for the first day of an operational period even though that inflow hasn't happened yet
+      result_filtered <- filter(result, label == "With Additional Release", datetime < current_date())
       ytd_release <- sum(submitted()$release)
       ytd_inflow <- sum(result_filtered$inflow) / 1000000
       
@@ -317,7 +302,7 @@ observeEvent(input$start_game_bottom,{
       current_proj <- projection()
       
       # Calculates year to date values and filters to most recent
-      current_proj_filtered <- filter(current_proj, label == "With Additional Release")
+      current_proj_filtered <- filter(current_proj, label == "With Additional Release", datetime < current_date())
       ytd_release <- sum(submitted()$release)
       ytd_inflow <- sum(current_proj_filtered$inflow) / 1000000
       
@@ -393,7 +378,25 @@ restart_app <- function() {
   updateNumericInput(session, "add_flow", value = "")
   submitted(data.frame(release = 0, add_flow = 0, time_step = 0))
   plot_ready(FALSE)
-  inflow <- sample(possible_inflows, 1)
+  inflow(sample(possible_inflows, 1))
+  
+  #UB consumptive use set up, 4.47 is upper basin consumptive use in     2024
+  # inflow during last time step is maximum consumption, if last inflow   is higher than the historical consumption (4.47 MAF), choose historical
+ub_use <- reactiveVal(numeric(length(time_step_lengths)))
+
+last_inflow_proj <- fPowellGameDataWrangle(
+  Inflow = c(0,0,0, inflow()),
+  Inflow_Time = time_step_lengths,
+  Release = 0,
+  Release_Time = sum(time_step_lengths),
+  Add_Release = 0,
+  Add_Time = sum(time_step_lengths),
+  Consume = 0,
+  Consume_Time = sum(time_step_lengths),
+  Storage_Data = hydrodata,
+  start_date = start_date 
+)
+last_inflow(sum(last_inflow_proj$inflow[last_inflow_proj$label == "No Additional Release"]) / 1000000)
   
   removeModal()
   
