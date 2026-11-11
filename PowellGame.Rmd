@@ -160,7 +160,10 @@ projection <- reactive({
           title = "Congratulations!", 
           end_description,
           plotOutput("final_projection_plot"),
-          tableOutput("past_decisions_modal"),
+          div(
+            style = "width: 100%; overflow-x: auto;", #Allows for scrolling on table in modal
+            tableOutput("past_decisions_modal")
+            ),
           easyClose = FALSE,
           footer = actionButton("restart_button", "Try Again")
         )
@@ -324,7 +327,7 @@ observeEvent(input$start_game_bottom,{
     release_per_period <- rep("", n)
     add_flow_per_period <- rep("", n)
     inflow_per_period <- rep("", n)
-    #con_use <- rep("", n)
+    con_use_per_period <- rep("", n)
     
    
   #inflow by period sorting 
@@ -350,7 +353,7 @@ total_inflow = sapply(seq_len(nrow(all_date_ranges)), function(i) {
   
  choices <- submitted() 
 
-     if (length(choices$release) > 1){
+     #if (length(choices$release) > 1){
       periods_revealed <- max(0, length(choices$release) - 1)
       periods_revealed <- min(periods_revealed, n)
       
@@ -363,7 +366,10 @@ total_inflow = sapply(seq_len(nrow(all_date_ranges)), function(i) {
       chosen_add_flows[seq_len(min(length(chosen_add_flows), n))]
       
       inflow_per_period[seq_len(periods_revealed)] <- inflow_sorted$total_inflow[seq_len(periods_revealed)]
-      }
+      
+      con_use_per_period[seq_len(periods_revealed)] <- 
+        ub_use()[seq_len(periods_revealed) + 1]
+      #}
       
    inflow_per_period <- round(as.numeric(inflow_per_period) / 1000000, digits = 2)
    inflow_per_period[is.na(inflow_per_period)] <- ""
@@ -373,7 +379,8 @@ total_inflow = sapply(seq_len(nrow(all_date_ranges)), function(i) {
       'Operational Period End' = format(all_date_ranges$end_date, "%B %d"),
       'Release (MAF)' = release_per_period,
       'Additional Flow (MAF)' = add_flow_per_period,
-      'Unregulated Inflow (MAF)' = inflow_per_period
+      'Unregulated Inflow (MAF)' = inflow_per_period,
+      'Consumptive Use (MAF)' = round(as.numeric(con_use_per_period), digits = 2)
     )
     })
     
@@ -383,7 +390,7 @@ total_inflow = sapply(seq_len(nrow(all_date_ranges)), function(i) {
   
   output$past_decisions_modal <- renderTable({
     past_inputs()
-  })
+  }, width = "50px")
 
 
 
@@ -465,7 +472,9 @@ output$instructions_main <- renderUI({instructions_content()})
   
 output$figure_title <- renderUI({HTML("<h2>Inflow Scenario Agreement: </h2>")})
 
-output$figure_description <- renderText("This figure shows agreement for 22 different generation methods of ensembles of plausible natural flow hydrology at Lee Ferry in the Colorado River Basin. Natural flow being the hypothetical flow in the system without any consumptive use or reservoir operations. Each bar contains the number of ensembles who’s lowest single year’s flow reaches that low or lower. The inflow scenario used in this game is one of these lowest single year flows. All 22 ensembles agree the Lee Ferry Natural Flow can be as low as 5-6 MAF which is consistent with the 2 lowest years in the historical record( 5.52 MAF in 1977 and 5.93 MAF in 2002). However, half of the ensembles agree the Colorado could see a flow even lower (between 4-5 MAF), and 6 agree that the annual flow could reach as low as between 3-4 MAF.")
+output$figure_description <- renderUI({HTML("This figure shows agreement for 22 different generation methods of ensembles of plausible <b>natural flow</b> hydrology at Lee Ferry in the Colorado River Basin. <b>Natural flow being the hypothetical flow in the system without any consumptive use or reservoir operations</b>. Each bar contains the number of ensembles who’s lowest single year’s flow reaches that low or lower. The inflow scenario used in this game is one of these lowest single year flows. All 22 ensembles agree the Lee Ferry Natural Flow can be as low as 5-6 MAF which is consistent with the 2 lowest years in the historical record( 5.52 MAF in 1977 and 5.93 MAF in 2002). However, half of the ensembles agree the Colorado could see a flow even lower (between 4-5 MAF), and 6 agree that the annual flow could reach as low as between 3-4 MAF.<br/><br/>
+From 2020 to 2024, the consumptive use upstream of Lake Powell ranged from 3.9 to 4.5 MAF. This consumptive use occurs during the summer.                                             ")})
+
 
 
 
@@ -481,7 +490,7 @@ ui <- fluidPage(
   
   uiOutput("figure_title"),
   img(src = "images/LowestInflowFigure.png", height = "300px"),
-  textOutput("figure_description"),
+  uiOutput("figure_description"),
   
   sidebarLayout(
     
