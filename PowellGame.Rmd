@@ -52,7 +52,7 @@ projection <- reactive({
   choices <- submitted()
   
     time_idx <- max(choices$time_step) + 1
-    print(paste0(ub_use()[1:time_idx]))
+    #print(paste0(ub_use()[1:time_idx]))
     
     result<- fPowellGameDataWrangle(
         Inflow = inflow(),
@@ -160,7 +160,7 @@ projection <- reactive({
           title = "Congratulations!", 
           end_description,
           plotOutput("final_projection_plot"),
-          tableOutput("past_decisions"),
+          tableOutput("past_decisions_modal"),
           easyClose = FALSE,
           footer = actionButton("restart_button", "Try Again")
         )
@@ -319,56 +319,71 @@ observeEvent(input$start_game_bottom,{
     fCalculateDateRangeGame(start_date, time_step_lengths[-1])
     all_date_ranges <- mutate(all_date_ranges, period = row_number())
     
-    choices <- submitted()
-    
     n <- nrow(all_date_ranges)
     #Blank release and add flow columns
-    release <- rep("", n)
-    add_flow <- rep("", n)
-    inflow <- rep("", n)
-    con_use <- rep("", n)
+    release_per_period <- rep("", n)
+    add_flow_per_period <- rep("", n)
+    inflow_per_period <- rep("", n)
+    #con_use <- rep("", n)
+    
    
   #inflow by period sorting 
-   inflow_known <- projection()[projection()$label == "No Additional Release",]
-   inflow_sorted <- inflow_known %>%
-     inner_join(all_date_ranges,
-     by = join_by(datetime >= start_date, datetime < end_date)
-   ) %>%
-  group_by(period, start_date, end_date) %>%
-  summarise(
-    total_inflow = sum(inflow, na.rm = TRUE),
-    .groups="drop"
-  )
-    
-    if (length(choices$release) > 1){
+
+inflow_known <- projection() %>%
+  filter(label == "No Additional Release")
+
+inflow_sorted <- data.frame(
+period = all_date_ranges$period,
+total_inflow = sapply(seq_len(nrow(all_date_ranges)), function(i) {
+
+ sum(
+    inflow_known$inflow[
+        inflow_known$datetime >= all_date_ranges$start_date[i] &
+        inflow_known$datetime < all_date_ranges$end_date[i]
+      ],
+      na.rm = TRUE
+    )
+
+  })
+)
+   
+  
+ choices <- submitted() 
+
+     if (length(choices$release) > 1){
+      periods_revealed <- max(0, length(choices$release) - 1)
+      periods_revealed <- min(periods_revealed, n)
+      
       chosen_releases <- choices$release[-1]
-      release[seq_len(min(length(chosen_releases), n))] <-
+      release_per_period[seq_len(min(length(chosen_releases), n))] <-
       chosen_releases[seq_len(min(length(chosen_releases), n))]
       
       chosen_add_flows <- choices$add_flow[-1]
-      add_flow[seq_len(min(length(chosen_add_flows), n))] <-
+      add_flow_per_period[seq_len(min(length(chosen_add_flows), n))] <-
       chosen_add_flows[seq_len(min(length(chosen_add_flows), n))]
       
-      revealed_inflow <- inflow_sorted$total_inflow
-      inflow[seq_len(min(length(revealed_inflow), n))] <-
-      revealed_inflow[seq_len(min(length(revealed_inflow)))]
+      inflow_per_period[seq_len(periods_revealed)] <- inflow_sorted$total_inflow[seq_len(periods_revealed)]
       }
       
-   inflow <- round(as.numeric(inflow) / 1000000, digits = 2)
-   inflow[is.na(inflow)] <- ""
+   inflow_per_period <- round(as.numeric(inflow_per_period) / 1000000, digits = 2)
+   inflow_per_period[is.na(inflow_per_period)] <- ""
     
     data.frame(
       'Operational Period Start' = format(all_date_ranges$start_date, "%B %d"),
       'Operational Period End' = format(all_date_ranges$end_date, "%B %d"),
-      'Release (MAF)' = release,
-      'Additional Flow (MAF)' = add_flow,
-      'Total Inflow (MAF)' = inflow
+      'Release (MAF)' = release_per_period,
+      'Additional Flow (MAF)' = add_flow_per_period,
+      'Unregulated Inflow (MAF)' = inflow_per_period
     )
     })
     
     
-    output$past_decisions <- renderTable({
-      past_inputs()})
+  output$past_decisions <- renderTable({
+    past_inputs()})
+  
+  output$past_decisions_modal <- renderTable({
+    past_inputs()
+  })
 
 
 
@@ -382,7 +397,7 @@ restart_app <- function() {
   
   #UB consumptive use set up, 4.47 is upper basin consumptive use in     2024
   # inflow during last time step is maximum consumption, if last inflow   is higher than the historical consumption (4.47 MAF), choose historical
-ub_use <- reactiveVal(numeric(length(time_step_lengths)))
+ub_use(numeric(length(time_step_lengths)))
 
 last_inflow_proj <- fPowellGameDataWrangle(
   Inflow = c(0,0,0, inflow()),
@@ -476,11 +491,12 @@ ui <- fluidPage(
     
     mainPanel(
       uiOutput("current_state"),
-      plotOutput("projection_plot"),
-      tableOutput("past_decisions")
+      plotOutput("projection_plot")
     )  
   ),
-
+  
+ tableOutput("past_decisions"),
+  
   h3("Context: "),
   h3("Assumptions and Data Sources: "),
   h3("Contact Information: ")

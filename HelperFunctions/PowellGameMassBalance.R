@@ -119,7 +119,7 @@ fPowellGameDataWrangle <- function(Inflow, Inflow_Time, Release, Release_Time, A
       }
     )
     con_use_i$con_use[is.na(con_use_i$con_use)] <- 0
-    print(paste0(con_use_i$con_use))
+    #print(paste0(con_use_i$con_use))
     
     # Subtracts consumptive use from inflow
     inflow_i$inflow <- inflow_i$inflow - con_use_i$con_use
@@ -130,7 +130,7 @@ fPowellGameDataWrangle <- function(Inflow, Inflow_Time, Release, Release_Time, A
    
     #Projects Storage and merges into single data frame
     no_add_release <- project_storage(inflow_i$inflow, release_i$release, Storage_Data, time_grid)
-    print(no_add_release)
+    #print(no_add_release)
     with_release <- project_storage(inflow_i$with_release, release_i$release, Storage_Data, time_grid)
     if("crashed" %in% c(no_add_release, with_release)){
       return("crashed")
